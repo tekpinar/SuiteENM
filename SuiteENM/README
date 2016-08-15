@@ -45,3 +45,4 @@ time_functions		: Self explanatory.
 aa_form_factors		: Functions I used to calculate amino acid form factors. 
 enm_functions		: All functions related with Elastic Network Model.
 pair_functions		: Pair distribution functions I wrote for SAXS-based flexible fitting. 
+nd_functions		: Normalized distance function. Please see DOI: 10.1007/s10822-015-9849-0 for details. 
