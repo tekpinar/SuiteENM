@@ -13,7 +13,7 @@ OPTFLAGS=-O3 -funroll-loops
 CFLAGS=-Wall ${OPTFLAGS}
 
 #Library path
-MYLIBDIR=/Users/mt/Documents/ccr_home/mylib
+MYLIBDIR=.
 INC_DIR=${MYLIBDIR}/include
 SRC_DIR=${MYLIBDIR}/src
 
