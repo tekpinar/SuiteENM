@@ -1,0 +1,46 @@
+#This Makefile contains individual entries for each library file
+
+#Set compiler
+CC=gcc
+
+#Warning flags
+CFLAGS=-Wall
+
+#Debugging flag 
+DBGFLAG=-g
+
+#Profiling flag
+PRFLFLAG=-pg
+
+#Optimization flags
+OPTFLAG=-O3 -funroll-loops #-mtune=generic
+
+#pair_functions.o: pair_functions.c
+#	${CC} ${CFLAGS} -c -std=c99  pair_functions.c -I. -o pair_functions.o
+
+default:
+	(make -f pair_functions.mk)
+	(make -f enm_functions.mk)
+	(make -f rmsd_functions.mk)
+	(make -f distance_functions.mk)
+	(make -f aa_functions.mk)
+	(make -f pdb_io.mk)
+	(make -f stat_functions.mk)
+	(make -f form_factors.mk)
+	(make -f waxs_functions.mk)
+	(make -f rc_functions.mk)
+	(make -f blast_functions.mk)
+	(make -f lapack_blas_functions.mk)
+	(make -f aa_form_factors.mk)
+	(make -f time_functions.mk)
+
+#compile1:
+#include pair_functions.mk 
+#include enm_functions.mk
+#enm_functions.o: enm_functions.c
+#	${CC}  ${CFLAG} -c -I. enm_functions.c -o enm_functions.o#
+
+#include pair_functions.mk	
+
+clean: 
+	rm -rf enm_functions.o pair_functions.o rmsd_functions.o distance_functions.o aa_functions.o pdb_io.o form_factors.o stat_functions.o waxs_functions.o rc_functions.o blast_functions.o lapack_blas_functions.o aa_form_factors.o time_functions.o

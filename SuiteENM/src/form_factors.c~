@@ -1,0 +1,262 @@
+//Purpose: form_factors.c contains functions calculate all atomic
+//          and residue small angle x-ray or wide angle x-ray form factors. 
+//Author : Mustafa Tekpinar
+//Date   : 08/17/2011
+
+/* Copyright (C) 2012  Mustafa Tekpinar
+
+This library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; 
+version 2.1 of the License.
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public
+License along with this library; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  
+02110-1301  USA
+
+Additionally, you can obtain a copy of the licence from 
+http://www.gnu.org/licenses/lgpl-2.1.html
+
+*/
+//Email: tekpinar@buffalo.edu
+
+//Revisions:
+//     v.00: calculateAtomicFF_v2() calculateAtomicFF_v3() functions added. 
+//     v.01: calculateAtomicFF_v4() and formFactorAllAtoms() functions added on 26 October 2011.  
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+//Personal header files
+#include <structures.h>
+#include <pdb_io.h>
+double calculateAtomicFF_v2(char element, double q/*Scattering vector*/, double rho_s/*Solvent density=0.334(for water)*/, int isSolventOn/*0:NO - 1:YES*/)
+{
+  double f_prime=0.0;
+  //  printf("Element=%c\n", element);
+  //     Element        a1          b1       a2        b2        a3         b3       a4          b4        c      Volume
+  double coef_H[10]={ 0.489918, 20.65930, 0.262003,  7.74039, 0.196767, 49.55190, 0.049879,  2.20159,  0.001305,   5.15};
+  double coef_C[10]={ 1.930190, 12.71880, 1.878120, 28.64980, 1.574150,  0.59645, 0.371080, 65.03370,  0.246370,  16.44};
+  double coef_N[10]={12.791300,  0.02064, 3.285460, 10.70180, 1.764830, 30.77730, 0.547090,  1.48044,-11.392600,   2.49};
+  double coef_O[10]={ 2.958480, 13.89640, 2.452400,  5.91765, 1.505100,  0.34537, 0.781350, 34.08110,  0.304130,   9.13};
+  double coef_P[10]={ 6.920730,  1.83778, 4.143960, 27.01980, 2.016970,  0.21318, 1.538600, 67.10860,  0.378700,   5.73};
+  double coef_S[10]={ 7.187420,  1.43280, 5.886710,  0.02865, 5.158580, 22.11010, 1.644030, 55.46510, -3.877320,  19.86};
+
+  double coef_X[10]={ 0.000000,  0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,  0.000000,  0.00};
+  //  int i=0;
+  //  double *coef_X;
+  //  if(element=='H') { coef_X=&(coef_H[0]); }
+  //  if(element=='H') {for(i=0; i<10; i++)  coef_X[i]=coef_H[i]; }
+  if(element=='H') {memcpy(coef_X, coef_H, sizeof(coef_H)); }
+  else if(element=='C') {memcpy(coef_X, coef_C, sizeof(coef_C));}
+  else if(element=='N') {memcpy(coef_X, coef_N, sizeof(coef_N));}
+  else if(element=='O') {memcpy(coef_X, coef_O, sizeof(coef_O));}
+  else if(element=='P') {memcpy(coef_X, coef_P, sizeof(coef_P));}
+  else if(element=='S') {memcpy(coef_X, coef_S, sizeof(coef_S));}
+  else
+    {
+      fprintf(stderr, "WARNING: Unknown element %c encountered!\n", element);
+      //      exit(EXIT_FAILURE);
+    }
+  //  double s=q/(4.0*M_PI);
+
+  // double s=q/(4.0*M_PI);
+  // (q/4*PI)=s and 4*PI=12.566370614359173  
+  // (4*PI)*(4*PI)=157.91367041742974=16*M_PI*M_PI;
+  double s_sqrd=(q*q)/(16.0*M_PI*M_PI);
+
+  f_prime= (coef_X[0]*exp(-coef_X[1]*s_sqrd)) + (coef_X[2]*exp(-coef_X[3]*s_sqrd))+ \
+           (coef_X[4]*exp(-coef_X[5]*s_sqrd)) + (coef_X[6]*exp(-coef_X[7]*s_sqrd))+ \
+           (coef_X[8]);
+  
+  if(isSolventOn)
+    {
+      f_prime=f_prime - ( (coef_X[9])*rho_s*(exp(-M_PI*pow((coef_X[9]), 0.666666)*s_sqrd*4.0)));
+    }
+  return f_prime;
+}
+double calculateAtomicFF_v3(char element, double q/*Scattering vector*/)
+{
+
+  //No implicit solvent substraction will be applied here. Keep in mind that this values for are sin(theta)/lambda, NOT 4*PI*sin(theta/lambda)!! 
+  //So, I do the q to s conversion at the end. 
+  //Source: http://it.iucr.org/Cb/ch6o1v0001/sec6o1o1/ - Table 6.1.1.4
+  double f_prime=0.0;
+  //  printf("Element=%c\n", element);
+  //     Element        a1          b1       a2        b2        a3         b3       a4          b4        c      Volume
+  double coef_H[10]={ 0.493002, 10.51090, 0.322912, 26.12570, 0.140191,  3.14236, 0.040810, 57.79970,  0.003038,   5.15};
+  //  double coef_H[10]={ 0.489918, 20.65930, 0.262003,  7.74039, 0.196767, 49.55190, 0.049879,  2.20159,  0.001305,   5.15};
+  double coef_C[10]={ 2.310000, 20.84390, 1.020000, 10.20750, 1.588600,  0.56870, 0.865000, 51.65120,  0.215600,  16.44};
+  double coef_N[10]={12.212600,  0.00570, 3.132200,  9.89330, 2.012500, 28.99750, 1.166300,  0.58260,-11.529000,   2.49};
+  double coef_O[10]={ 3.048500, 13.27710, 2.286800,  5.70110, 1.546300,  0.32390, 0.867000, 32.90890,  0.250800,   9.13};
+  double coef_P[10]={ 6.434500,  1.90670, 4.179100, 27.15700, 1.780000,  0.52600, 1.490800, 68.16450,  1.114900,   5.73};
+  double coef_S[10]={ 6.905300,  1.46790, 5.203400, 22.21510, 1.437900,  0.25360, 1.586300, 56.17200,  0.866900,  19.86};
+
+  double coef_Fe2[10]={11.0424, 4.65380, 7.37400, 0.305300, 4.13460, 12.0546, 0.439900, 31.2809, 1.009700, 8.37};
+  double coef_Fe3[10]={11.1764, 4.61470, 7.38630, 0.300500, 3.39480, 11.6729, 0.072400, 38.5566, 0.970700, 8.37};
+
+  double coef_X[10]={ 0.000000,  0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,  0.000000,  0.00};
+  //  int i=0;
+  //  double *coef_X;
+  //  if(element=='H') { coef_X=&(coef_H[0]); }
+  //  if(element=='H') {for(i=0; i<10; i++)  coef_X[i]=coef_H[i]; }
+  if(element=='H') {memcpy(coef_X, coef_H, sizeof(coef_H)); }
+  else if(element=='C') {memcpy(coef_X, coef_C, sizeof(coef_C));}
+  else if(element=='N') {memcpy(coef_X, coef_N, sizeof(coef_N));}
+  else if(element=='O') {memcpy(coef_X, coef_O, sizeof(coef_O));}
+  else if(element=='P') {memcpy(coef_X, coef_P, sizeof(coef_P));}
+  else if(element=='S') {memcpy(coef_X, coef_S, sizeof(coef_S));}
+  //I now F is Fluorine, not Fe(Iron). However, proteins generally doesnt contain fluorine.
+  //Even if they do, it will be in 15th character in PDB ATOM record. Not in 14th like iron!  
+  //So, no problem if wrong symbols but correct data is used inside the program!
+  else if(element=='F') {memcpy(coef_X, coef_Fe2, sizeof(coef_Fe2));} 
+  else
+    {
+      fprintf(stderr, "ERROR: Unknown element %c encountered!\n", element);
+      exit(EXIT_FAILURE);
+    }
+  // double s=q/(4.0*M_PI);
+  // (q/4*PI)=s and 4*PI=12.566370614359173  
+  // (4*PI)*(4*PI)=157.91367041742974
+  //  double s_sqrd=(q*q)/(157.91367041742974);
+  double s_sqrd=(q*q)/(16.0*M_PI*M_PI);
+
+  f_prime= (coef_X[0]*exp(-coef_X[1]*s_sqrd)) + (coef_X[2]*exp(-coef_X[3]*s_sqrd))+ \
+           (coef_X[4]*exp(-coef_X[5]*s_sqrd)) + (coef_X[6]*exp(-coef_X[7]*s_sqrd))+ \
+           (coef_X[8]);
+
+  return f_prime;
+}
+double calculateAtomicFF_v4(char element, double q/*Scattering vector*/, double rho_s/*Solvent density=0.334(for water)*/, int isSolventOn/*0:NO - 1:YES*/)
+{
+
+  //Keep in mind that this values for are sin(theta)/lambda, NOT 4*PI*sin(theta/lambda)!! 
+  //So, I do the q to s conversion at the end. 
+  //Source: http://it.iucr.org/Cb/ch6o1v0001/sec6o1o1/ - Table 6.1.1.4
+  //Whats new in v4: In this version, solvent is substracted implicitly and q is in WAXS region. 
+  double f_prime=0.0;
+  //  printf("Element=%c\n", element);
+  //     Element        a1          b1       a2        b2        a3         b3       a4          b4        c      Volume
+  double coef_H[10]={ 0.493002, 10.51090, 0.322912, 26.12570, 0.140191,  3.14236, 0.040810, 57.79970,  0.003038,   5.15};
+  //  double coef_H[10]={ 0.489918, 20.65930, 0.262003,  7.74039, 0.196767, 49.55190, 0.049879,  2.20159,  0.001305,   5.15};
+  double coef_C[10]      ={ 2.310000, 20.84390, 1.020000, 10.20750, 1.588600,  0.56870, 0.865000, 51.65120,  0.215600,  16.44};
+  double coef_N[10]      ={12.212600,  0.00570, 3.132200,  9.89330, 2.012500, 28.99750, 1.166300,  0.58260,-11.529000,   2.49};
+  double coef_O[10]      ={ 3.048500, 13.27710, 2.286800,  5.70110, 1.546300,  0.32390, 0.867000, 32.90890,  0.250800,   9.13};
+  double coef_P[10]      ={ 6.434500,  1.90670, 4.179100, 27.15700, 1.780000,  0.52600, 1.490800, 68.16450,  1.114900,   5.73};
+  double coef_S[10]      ={ 6.905300,  1.46790, 5.203400, 22.21510, 1.437900,  0.25360, 1.586300, 56.17200,  0.866900,  19.86};
+  double coef_Fe2plus[10]={11.042400,  4.65380, 7.374000,  0.30530, 4.134600, 12.05460, 0.439900, 31.28090,  1.009700,   8.37};
+
+  double coef_X[10]={ 0.000000,  0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,  0.000000,  0.00};
+  //  int i=0;
+  //  double *coef_X;
+  //  if(element=='H') { coef_X=&(coef_H[0]); }
+  //  if(element=='H') {for(i=0; i<10; i++)  coef_X[i]=coef_H[i]; }
+  if(element=='H') {memcpy(coef_X, coef_H, sizeof(coef_H)); }
+  else if(element=='C') {memcpy(coef_X, coef_C, sizeof(coef_C));}
+  else if(element=='N') {memcpy(coef_X, coef_N, sizeof(coef_N));}
+  else if(element=='O') {memcpy(coef_X, coef_O, sizeof(coef_O));}
+  else if(element=='P') {memcpy(coef_X, coef_P, sizeof(coef_P));}
+  else if(element=='S') {memcpy(coef_X, coef_S, sizeof(coef_S));}
+  else if(element=='F') {memcpy(coef_X, coef_Fe2plus, sizeof(coef_Fe2plus));}
+  else
+    {
+      fprintf(stderr, "WARNING: Unknown element %c encountered!\n", element);
+      //      exit(EXIT_FAILURE);
+    }
+  // double s=q/(4.0*M_PI);
+  // (q/4*PI)=s and 4*PI=12.566370614359173  
+  // (4*PI)*(4*PI)=157.91367041742974
+  //  double s_sqrd=(q*q)/(157.91367041742974);
+  double s_sqrd=(q*q)/(16.0*M_PI*M_PI);
+
+  f_prime= (coef_X[0]*exp(-coef_X[1]*s_sqrd)) + (coef_X[2]*exp(-coef_X[3]*s_sqrd))+ \
+           (coef_X[4]*exp(-coef_X[5]*s_sqrd)) + (coef_X[6]*exp(-coef_X[7]*s_sqrd))+ \
+           (coef_X[8]);
+
+  if(isSolventOn)
+    {
+      f_prime=f_prime - ( (coef_X[9])*rho_s*(exp(-M_PI*pow((coef_X[9]), 0.666666)*s_sqrd*4.0)));
+    }
+
+  return f_prime;
+}
+
+void formFactorAllAtoms(int N/*Total number of atoms*/, pdb_v23 *info, double waterWeight, double *f_l, double q, double rho_s, int isSolventOn)
+{
+  int  i=0;
+  char element=' ';
+
+  for(i=0; i<N; i++)
+    {
+      if((info[i].altLoc=='A') || (info[i].altLoc==' '))   //Select one of alternative locations i'th atom.
+	{
+	  element=' ';
+	  if(info[i].name[0]==' ') element=info[i].name[1];
+	  else element=info[i].name[0];
+	  
+	  f_l[i]=calculateAtomicFF_v2(element, q, rho_s, isSolventOn/*Solvent off*/) ;
+	  
+	  //	      if(element=='H') ff[i]=0.0; //to exclude hydrogens.
+	  if( (strncmp(info[i].resName, "TIP", 3)==0) || (strncmp(info[i].resName, "HOH", 3)==0) )
+	    {
+	      f_l[i]=(waterWeight*f_l[i]);
+	    }
+	}
+    }
+}
+void formFactorAllAtoms_v3(int frameNo, int frm_beg, int frm_end, char *element, \
+			   double waterWeight, double *f_l, double q, double rho_s, int isSolventOn)
+{
+  int  i=0;
+  //Keep in mind that you are calculating form factors even for altLoc atoms!!
+  //Additionally, you are not weighting water in any way!
+  for(i=frm_beg; i<frm_end; i++)
+    {
+      f_l[i]=calculateAtomicFF_v3(element[i], q) ;
+    }
+}
+
+
+void formFactorAllAtoms_v4(int frameNo, int frm_beg, int frm_end, char *element, \
+			   double waterWeight, double *f_l, double q, double rho_s, int isSolventOn)
+{
+  int  i=0;
+  //Keep in mind that you are calculating form factors even for altLoc atoms!!
+  //Additionally, you are not weighting water in any way!
+  //Just to avoid recalculations for the same element type in a specified q, lets calculate for all elements. 
+  //Then, lets use them over and over. 
+
+  double temp_atomic_ff[7]={0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  temp_atomic_ff[0]=calculateAtomicFF_v3('H', q) ;
+  temp_atomic_ff[1]=calculateAtomicFF_v3('C', q) ;
+  temp_atomic_ff[2]=calculateAtomicFF_v3('N', q) ;
+  temp_atomic_ff[3]=calculateAtomicFF_v3('O', q) ;
+  temp_atomic_ff[4]=calculateAtomicFF_v3('P', q) ;
+  temp_atomic_ff[5]=calculateAtomicFF_v3('S', q) ;
+  temp_atomic_ff[6]=calculateAtomicFF_v3('F', q) ; //It is Iron, not Flourine!
+
+  for(i=frm_beg; i<frm_end; i++)
+    {
+      if(element[i]=='H') {f_l[i]=temp_atomic_ff[0];}
+      else if(element[i]=='C') {f_l[i]=temp_atomic_ff[1];}
+      else if(element[i]=='N') {f_l[i]=temp_atomic_ff[2];}
+      else if(element[i]=='O') {f_l[i]=temp_atomic_ff[3];}
+      else if(element[i]=='P') {f_l[i]=temp_atomic_ff[4];}
+      else if(element[i]=='S') {f_l[i]=temp_atomic_ff[5];}
+      //I now F is Fluorine, not Fe(Iron). However, proteins generally doesnt contain fluorine.
+      //Even if they do, it will be in 15th character in PDB ATOM record. Not in 14th like iron!  
+      //So, no problem if wrong symbols but correct data is used inside the program!
+      else if(element[i]=='F') {f_l[i]=temp_atomic_ff[6];}
+      else
+	{
+	  fprintf(stderr, "ERROR: Unknown element %c encountered!\n", element[i]);
+	  exit(EXIT_FAILURE);
+	}
+    }
+}

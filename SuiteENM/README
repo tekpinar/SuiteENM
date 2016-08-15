@@ -1,0 +1,47 @@
+/* Copyright (C) 2012  Mustafa Tekpinar
+
+This library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; 
+version 2.1 of the License.
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public
+License along with this library; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  
+02110-1301  USA
+
+Additionally, you can obtain a copy of the licence from 
+http://www.gnu.org/licenses/lgpl-2.1.html
+
+*/
+//Email: tekpinar@buffalo.edu
+
+This folder contains a library I developed during my PhD. 
+'include' folder contains all header files. 
+'src' folder contains all source C files. 
+Makefiles for each individual file has '.mk' extenstions.
+Object files are in '.o' extension. 
+Even thought the file names are pretty much self-explanatory, 
+here is a short summary:
+u3b.f			: RMSD calculation with Kasch Method.
+rc_functions  	  	: Various functions to calculate different reaction coordinates.
+aa_functions	  	: Functions related to essential amino acid properties like 3 letter codes, 
+			  1 letter codes, mass, charge, volume.
+distance_functions	: Distance calculation functions for different structures. 
+form_factors		: Atomic X-Ray scattering form factor calculation functions. 
+stat_functions		: Averaging, standard deviations etc. functions. 
+waxs_functions		: Functions I developed to calculate WAXS intensities with Makowski's method. 
+rmsd_functions		: A bunch of functions for RMSD calculation and superimposition of protein structures.
+blast_functions		: Sequence alignment functions of Dr. Wenjun Zheng. 
+lapack_blas_functions	: They are not lapack or blas functions. They are functions that I use to solve a linear equation 
+			  system w/ Lapack or Blas. 
+pdb_io			: The name says pretty much everything. 
+time_functions		: Self explanatory. 
+aa_form_factors		: Functions I used to calculate amino acid form factors. 
+enm_functions		: All functions related with Elastic Network Model.
+pair_functions		: Pair distribution functions I wrote for SAXS-based flexible fitting. 
