@@ -28,7 +28,7 @@ Makefiles for each individual file has '.mk' extenstions.
 Object files are in '.o' extension. 
 Even thought the file names are pretty much self-explanatory, 
 here is a short summary:
-u3b.f			: RMSD calculation with Kasch Method.
+u3b.f			: RMSD calculation with Kabsch Method.
 rc_functions  	  	: Various functions to calculate different reaction coordinates.
 aa_functions	  	: Functions related to essential amino acid properties like 3 letter codes, 
 			  1 letter codes, mass, charge, volume.
