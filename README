@@ -22,10 +22,11 @@ http://www.gnu.org/licenses/lgpl-2.1.html
 //Email: tekpinar@buffalo.edu
 
 This folder contains a library I developed during my PhD. 
-'include' folder contains all header files. 
-'src' folder contains all source C files. 
+-'include' folder contains all header files. 
+-'src' folder contains all source C files. 
 Makefiles for each individual file has '.mk' extenstions.
-Object files are in '.o' extension. 
+-Object files are in '.o' extension. All object files are in lib directory. 
+ Object files were compiled on Ubuntu 14.04 X86_64 system.  
 Even thought the file names are pretty much self-explanatory, 
 here is a short summary:
 u3b.f			: RMSD calculation with Kabsch Method.
