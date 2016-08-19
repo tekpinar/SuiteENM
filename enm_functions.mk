@@ -12,5 +12,8 @@ INC_DIR=./include
 #Source files directory
 SRC_DIR=./src
 
+#Library files directory
+LIB_DIR=./lib
+
 enm_functions.o: ${SRC_DIR}/enm_functions.c ${INC_DIR}/structures.h ${INC_DIR}/distance_functions.h ${INC_DIR}/enm_functions.h
-	${CC}  ${CFLAG} ${OPTFLAG} -c -I${INC_DIR} ${SRC_DIR}/enm_functions.c -o enm_functions.o
+	${CC}  ${CFLAG} ${OPTFLAG} -c -I${INC_DIR} ${SRC_DIR}/enm_functions.c -o ${LIB_DIR}/enm_functions.o

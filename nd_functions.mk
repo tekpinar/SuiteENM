@@ -12,5 +12,8 @@ INC_DIR=./include
 #Source files directory
 SRC_DIR=./src
 
+#Library files directory
+LIB_DIR=./lib
+
 nd_functions.o: ${SRC_DIR}/nd_functions.c ${INC_DIR}/nd_functions.h
-	${CC}  ${CFLAG} ${OPTFLAG} -c -I${INC_DIR} ${SRC_DIR}/nd_functions.c -o nd_functions.o
+	${CC}  ${CFLAG} ${OPTFLAG} -c -I${INC_DIR} ${SRC_DIR}/nd_functions.c -o ${LIB_DIR}/nd_functions.o

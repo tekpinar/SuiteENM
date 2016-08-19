@@ -12,5 +12,8 @@ INC_DIR=./include
 #Source files directory
 SRC_DIR=./src
 
+#Library files directory
+LIB_DIR=./lib
+
 lapack_blas_functions.o: ${SRC_DIR}/lapack_blas_functions.c ${INC_DIR}/lapack_blas_functions.h
-	${CC}  ${CFLAG} ${OPTFLAG} -c -I${INC_DIR} ${SRC_DIR}/lapack_blas_functions.c -o lapack_blas_functions.o
+	${CC}  ${CFLAG} ${OPTFLAG} -c -I${INC_DIR} ${SRC_DIR}/lapack_blas_functions.c -o ${LIB_DIR}/lapack_blas_functions.o

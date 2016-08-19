@@ -12,5 +12,8 @@ INC_DIR=./include
 #Source files directory
 SRC_DIR=./src
 
+#Library files directory                                                           |
+LIB_DIR=./lib 
+
 time_functions.o: ${SRC_DIR}/time_functions.c ${INC_DIR}/time_functions.h
-	${CC}  ${CFLAG} ${OPTFLAG} -c -I${INC_DIR} ${SRC_DIR}/time_functions.c -o time_functions.o
+	${CC}  ${CFLAG} ${OPTFLAG} -c -I${INC_DIR} ${SRC_DIR}/time_functions.c -o ${LIB_DIR}/time_functions.o

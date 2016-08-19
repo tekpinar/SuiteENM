@@ -9,5 +9,9 @@ INC_DIR=./include
 #Source files directory
 SRC_DIR=./src
 
+
+#Library files directory
+LIB_DIR=./lib
+
 aa_functions.o: ${SRC_DIR}/aa_functions.c ${INC_DIR}/aa_functions.h
-	${CC}  ${CFLAG} -c  -I${INC_DIR} ${SRC_DIR}/aa_functions.c -o aa_functions.o
+	${CC}  ${CFLAG} -c  -I${INC_DIR} ${SRC_DIR}/aa_functions.c -o ${LIB_DIR}/aa_functions.o
