@@ -28,7 +28,9 @@ http://www.gnu.org/licenses/lgpl-2.1.html
 
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef __APPLE__
 #include <Accelerate/Accelerate.h>
+#endif
 #include <string.h>
 #include <math.h>
 #include <time.h>
@@ -39,6 +41,8 @@ http://www.gnu.org/licenses/lgpl-2.1.html
 
 //Personal header files
 //#include <time_functions.h>
+#define KBT 2.49434192
+#define M_PI 3.14159265358979323846
 
 typedef struct
 {
@@ -288,7 +292,7 @@ double distanceSquared(double a[3], double b[3])
 
 double getMatElement_parabolicPotential(CAcoord *atomSet, int pa, int d1, int ir, int d2, double R_cutoff_squared)
 {
-	double	fac=1;
+	double	fac=1.0;
 	double xyz1[3], xyz2[3];
 
 	xyz1[0] = atomSet[pa].x;
@@ -301,12 +305,12 @@ double getMatElement_parabolicPotential(CAcoord *atomSet, int pa, int d1, int ir
 	//	printf("xyz2[0]=%lf, xyz2[1]=%lf, xyz2[2]=%lf\n", xyz2[0], xyz2[1], xyz2[2]);
 	
 	double dis_squared = distanceSquared(xyz1, xyz2); 
-	if(abs(pa-ir)==1)
-	{
-	fac=100;
-	}
-	else
-	fac=1;
+	// if(abs(pa-ir)==1)
+	// {
+	// fac=100;
+	// }
+	// else
+	//   fac=1;
 
 	if ( dis_squared >= R_cutoff_squared )
 	return 0;
@@ -314,7 +318,7 @@ double getMatElement_parabolicPotential(CAcoord *atomSet, int pa, int d1, int ir
 	return (fac * ( xyz1[d1] - xyz2[d1] ) * ( xyz1[d2] - xyz2[d2] ) / (dis_squared));
 }
 
-void getHessian_parabolicPotential(int N/*System Size*/, CAcoord *atomSet, double **Hessian, double R_cutoff, int printDetails)
+void getHessian_parabolicPotential(int N/*System Size*/, CAcoord *atomSet, double **Hessian, double **forceConstantsMatrix, double R_cutoff, int printDetails)
 {
 
   double R_cutoff_squared=R_cutoff*R_cutoff;
@@ -330,7 +334,7 @@ void getHessian_parabolicPotential(int N/*System Size*/, CAcoord *atomSet, doubl
       for(k=0; k<3; ++k)
 	for(l=0; l<3; ++l) 
 	  {
-	    double offdiagonal = -getMatElement_parabolicPotential(atomSet, i, k, j, l, R_cutoff_squared); 
+	    double offdiagonal = -(forceConstantsMatrix[i][j])*getMatElement_parabolicPotential(atomSet, i, k, j, l, R_cutoff_squared); 
 	    Hessian[3*i+k][3*j+l] = offdiagonal;
 	    //printf("Hessian[%d][%d]=%lf\n", (3*i+k), (3*j+l), Hessian[3*i+k][3*j+l]);
 	    Hessian[3*j+l][3*i+k] = offdiagonal;
@@ -615,7 +619,7 @@ double betaFactorCrossCorrelation(int num_of_C_alphas, double *betaFactorsExperi
   return(acos(scalarProduct/sqrt(normTheo*normExp)));
 }
 
-void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int num_of_modes, char *betaFactorFile)
+void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int num_of_modes, char *betaFactorFile, bool fit2Experimental)
 {
   int i=0;
   int j=0;
@@ -639,21 +643,23 @@ void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int 
   //Now, we are calculating total area here!
   double totalAreaExperimental=0.0;
   double betaFactorsExperimental[N];
+  double eightPISquaredby3=8.0*M_PI*M_PI/3.0*100;
+  
   for(j=0;j<N;j++)
     {
       betaFactorsExperimental[j]=0.0;
       betaFactorsExperimental[j]=atomSet[j].beta;
       totalAreaExperimental+=atomSet[j].beta;
     }
-
+  
   if( ((num_of_modes+6)>(3*N-6)) || ((num_of_modes)>(3*N-6)) ) 
     {
       fprintf(stderr, "WARNING: Number of normal modes can not exceed 3*N-6, where N is number of CA atoms!\n");
       num_of_modes=(3*N-6);
     }
   double totalAreaTheoretical[num_of_modes+1]; //the last plus one is for average coefficient.
-  double allDisplacementSquared[num_of_modes][N];
-
+  //double allDisplacementSquared[num_of_modes][N];
+  //fprintf(stderr, "HERE I AM\n");
   //Here, I am trying to get the sum of squares of displacement for different modes!
   for(j=0;j<N;j++)
     {
@@ -669,8 +675,10 @@ void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int 
       for(j=0;j<N;j++)
 	{
 	  totalAreaTheoretical[i-6]+=displacementSquared[j];
-	    averageDisplacementSquared[j]+=((1.0/pow(W[i], 0.5))*displacementSquared[j]);
-	  allDisplacementSquared[i-6][j]=displacementSquared[j];
+	    //averageDisplacementSquared[j]+=((1.0/pow(W[i], 0.5))*displacementSquared[j]);
+      //averageDisplacementSquared[j]+=((3*KBT/W[i])*displacementSquared[j]);
+      averageDisplacementSquared[j]+=((KBT/W[i])*displacementSquared[j]);
+	  //allDisplacementSquared[i-6][j]=displacementSquared[j];
 	}
     }
 
@@ -682,19 +690,21 @@ void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int 
       //      averageDisplacementSquared[j]=averageDisplacementSquared[j]/((double)num_of_modes);
       totalAreaTheoretical[num_of_modes]+=averageDisplacementSquared[j];
     }
-  printf("HERE I AM\n");
+  
   for(j=0;j<N;j++)
     {
       fprintf(BETA_FILE, "%d\t%.2lf\t", atomSet[j].resNo, atomSet[j].beta );
-      for(i=6;i<(num_of_modes+6);i++) 
-	{
-	  fprintf(BETA_FILE, "%.2lf\t", allDisplacementSquared[i-6][j]*(totalAreaExperimental/totalAreaTheoretical[i-6]) );
-	  //	  fprintf(BETA_FILE, "%.2lf\t", allDisplacementSquared[i-6][j]);
-	}
+      // for(i=6;i<(num_of_modes+6);i++) 
+	// {
+	//   fprintf(BETA_FILE, "%.2lf\t", allDisplacementSquared[i-6][j]*(totalAreaExperimental/totalAreaTheoretical[i-6]) );
+	//   //	  fprintf(BETA_FILE, "%.2lf\t", allDisplacementSquared[i-6][j]);
+	// }
+    if(fit2Experimental)
       fprintf(BETA_FILE, "%.2lf\n", averageDisplacementSquared[j]*(totalAreaExperimental/totalAreaTheoretical[num_of_modes]));
-      //      fprintf(BETA_FILE, "%.2lf\n", averageDisplacementSquared[j]);
+    else
+      fprintf(BETA_FILE, "%.2lf\n", eightPISquaredby3*averageDisplacementSquared[j]);
     }
-  printf("HERE I AM\n");  
+  fprintf(stderr, "HERE I AM\n");  
   betaFactorCrossCorrelation(N, betaFactorsExperimental, averageDisplacementSquared);
 
 /*   //Print results to file */
@@ -729,6 +739,7 @@ double aa2Mass(char *residueName)
   if (strncmp(residueName,"GLU", 3)==0) return (129.1140);     /* E */
   if (strncmp(residueName,"GLY", 3)==0) return  (57.0513);     /* G */
   if (strncmp(residueName,"HIS", 3)==0) return (137.1393);     /* H */
+  if (strncmp(residueName,"HSD", 3)==0) return (137.1393);     /* H */
   if (strncmp(residueName,"ILE", 3)==0) return (113.1576);     /* I */
   if (strncmp(residueName,"LEU", 3)==0) return (113.1576);     /* L */
   if (strncmp(residueName,"LYS", 3)==0) return (128.1723);     /* K */
@@ -836,7 +847,71 @@ void usage()
     fputs("    The first column of this file is experimental CA beta factors.        \n", stdout);
     fputs("    The last column of this file is average theoretical CA beta factors.\n\n", stdout);
 }
+void readForceConstantsMatrixHANM(char *fcFile, double **forceConstantsMatrix)
+{
+  //Read a custom force constants matrix.
+  FILE *fcdata=fopen(fcFile,"r");
+  if(fcdata==NULL)
+  {
+    fprintf(stderr, "No such file:%s\n", fcFile); 
+    exit(EXIT_FAILURE); 
+  }
+//////////////////////////////////////////////////////////
+//char c_buffer[20]; //Stands for (c)haracter buffer!!!
+char *c_buffer;
+//memset(c_buffer,'\0', 20);
 
+char line[100];
+memset(line,'\0', 100);
+
+char *array[3];
+//Just a conversion factor from kJ/mol-nm^2 to kcal/mol-Angstrom^2
+double conversionFactor=23.9E-2;
+
+while(1)
+  {
+    //      line_ptr=;
+  if(fgets(line, sizeof(line),fcdata)==NULL) break;
+  
+  c_buffer=strtok(line, " ");
+  int i=0;
+  while(c_buffer != NULL)
+    {
+
+      array[i++]=c_buffer;
+      
+      c_buffer = strtok (NULL, " ");
+    }
+  //fprintf(stdout, "%s\t%s\t%s\n", array[0], array[1], array[2]);
+    //forceConstantsMatrix[atoi(array[0])-1][atoi(array[1])-1]=conversionFactor*atof(array[2]);
+    //forceConstantsMatrix[atoi(array[1])-1][atoi(array[0])-1]=conversionFactor*atof(array[2]);
+    forceConstantsMatrix[atoi(array[0])-1][atoi(array[1])-1]=atof(array[2]);
+    forceConstantsMatrix[atoi(array[1])-1][atoi(array[0])-1]=atof(array[2]);
+
+  // size_t n = 0;
+  // for(n = 0; n < sizeof line; ++n)
+  //   line[n] ? putchar(line[n]) : fputs("\\0", stdout);
+
+    
+  // if((strncmp("ATOM  ", line, 6))==0)
+  // {
+  // memset(c_buffer,'\0', 9);
+  // strncpy(c_buffer,         line+6,   5);
+  // info[i].serial=atoi(c_buffer);
+
+  // memset(info[i].name,'\0', 5);
+  // strncpy(info[i].name,      line+12,  4);
+
+  // info[i].altLoc=line[16];
+
+  // memset(info[i].resName,'\0', 4);
+  // strncpy(info[i].resName,   line+17,  3);
+  // }
+  }
+//////////////////////////////////////////////////////////
+
+  fclose(fcdata);
+}
 int main (int argc, char **argv)
 {
   fputs("================================================================\n", stdout);
@@ -873,30 +948,30 @@ int main (int argc, char **argv)
   while ((option = getopt(argc, argv,"hi:o:R:n:s:m:b:")) != -1) 
     {
       switch (option) 
-	{
-	case 'i' : inputfile =optarg;
-	  break;
-	case 'o' : outputfile=optarg;
-	  break;
-	case 'R' : R_cutoff  = atof(optarg); 
-	  break;
-	case 'n' : num_modes = atoi(optarg); 
-	  break;
-	case 's' : scaleAmplitudes=atof(optarg); 
-	  break;
-	case 'm' : mass_weight_type=atoi(optarg); 
-	  break;
-	case 'b' : betafile=optarg; 
-	  break;
-	case 'h' : usage(); 
-	  exit(EXIT_FAILURE);
-	  break;
+      {
+      case 'i' : inputfile =optarg;
+        break;
+      case 'o' : outputfile=optarg;
+        break;
+      case 'R' : R_cutoff  = atof(optarg); 
+        break;
+      case 'n' : num_modes = atoi(optarg); 
+        break;
+      case 's' : scaleAmplitudes=atof(optarg); 
+        break;
+      case 'm' : mass_weight_type=atoi(optarg); 
+        break;
+      case 'b' : betafile=optarg; 
+        break;
+      case 'h' : usage(); 
+        exit(EXIT_FAILURE);
+        break;
 
-	default: usage(); 
-	  exit(EXIT_FAILURE);
-	}
+      default: usage(); 
+        exit(EXIT_FAILURE);
+      }
     }
-  betafile="test.dat";
+  //betafile="test.dat";
 
   if((R_cutoff<0.0))
     {
@@ -945,7 +1020,7 @@ int main (int argc, char **argv)
   FILE *pdbdata=fopen(inputfile,"r");
   if(pdbdata==NULL)
     {
-      fprintf(stderr, "No such file:%s\n", inputfile); 
+      fprintf(stderr, "No such file: %s\n", inputfile); 
       exit(EXIT_FAILURE); 
     }
   
@@ -991,25 +1066,25 @@ int main (int argc, char **argv)
 
       //      alanineMassScanning(N, k, "ALA", atomSet1);
 
-      double **hess_ENM = (double**)malloc(3*N*sizeof(double*));
-      if(hess_ENM==NULL)
-	{
-	  fprintf(stderr, "Malloc cannot allocate memory for hess_ENM array");
-	  exit(EXIT_FAILURE);
-	}
+  double **hess_ENM = (double**)malloc(3*N*sizeof(double*));
+  if(hess_ENM==NULL)
+    {
+      fprintf(stderr, "Malloc cannot allocate memory for hess_ENM array");
+      exit(EXIT_FAILURE);
+    }
       
-      for (i=0; i<3*N; i++)
-	{
+  for (i=0; i<3*N; i++)
+	  {
 	  hess_ENM[i] = (double*)calloc((3*N),sizeof(double));
 	  if(hess_ENM[i]==NULL)
 	    {
 	      fprintf(stderr, "Calloc cannot allocate memory for hess_ENM[i] array");
 	      exit(EXIT_FAILURE);
 	    }
-	}
+	  }
       
-      double* A = (double*)calloc((3*N*3*N), sizeof(double));
-      if(A==NULL)
+  double* A = (double*)calloc((3*N*3*N), sizeof(double));
+  if(A==NULL)
 	{
 	  fprintf(stderr, "ERROR: I can not allocate memory for eigenvectors!\n");
 	  exit(EXIT_FAILURE);
@@ -1021,54 +1096,89 @@ int main (int argc, char **argv)
 	  exit(EXIT_FAILURE);
 	}
       
-      int    printDetails=0;       //Which means obviously no!
-      //This is just a theoretical point but I need to deviate coordinates from equillibrium(pdb) coordinates.
-      //So, I am deviating all distances 0.001 Angstrom here. For parabolic potential, it didn't not change results.
-      //========================================================================================================
-      double deviateDist=0.001; 
-      for(i=0; i<N; i++)
-	{
-	  atomSet1[i].x=(atomSet1[i].x-deviateDist);
-	  atomSet1[i].y=(atomSet1[i].y-deviateDist);
-	  atomSet1[i].z=(atomSet1[i].z-deviateDist);
-	}
-      //========================================================================================================
+  int    printDetails=0;       //Which means obviously no!
+  //This is just a theoretical point but I need to deviate coordinates from equillibrium(pdb) coordinates.
+  //So, I am deviating all distances 0.001 Angstrom here. For parabolic potential, it didn't not change results.
+  //========================================================================================================
+  /* double deviateDist=0.001;  */
+  /* for(i=0; i<N; i++) */
+  /* 	{ */
+  /* 	  atomSet1[i].x=(atomSet1[i].x-deviateDist); */
+  /* 	  atomSet1[i].y=(atomSet1[i].y-deviateDist); */
+  /* 	  atomSet1[i].z=(atomSet1[i].z-deviateDist); */
+  /* 	} */
+  //========================================================================================================
+  
       
+      
+  //========================================================================================================
+  //Get force constants matrix
+  double **forceConstantsMatrix = (double**)malloc(N*sizeof(double*));
+  if(forceConstantsMatrix==NULL)
+    {
+      fprintf(stderr, "Malloc cannot allocate memory for forceConstantsMatrix array");
+      exit(EXIT_FAILURE);
+    }
+  
+  for (i=0; i<N; i++)
+    {
+      forceConstantsMatrix[i] = (double*)calloc((N),sizeof(double));
+      if(forceConstantsMatrix[i]==NULL)
+        {
+          fprintf(stderr, "Calloc cannot allocate memory for forceConstantsMatrix[i] array");
+          exit(EXIT_FAILURE);
+        }
+    }
+  int j=0;
+  //Set all force constants to 1.0
+  // for (i=0; i<N; i++)
+  //   {
+  //     for (j=0; j<i; j++)
+  //       {
+  //         forceConstantsMatrix[i][j]=forceConstantsMatrix[i][j];
+          
+  //       }
+  //   }
+  //Read force constants matrix
+  readForceConstantsMatrixHANM("rc15/fc_all_final_25_1p5_1p0_40_100.xvg", forceConstantsMatrix);
+  //========================================================================================================
+
       //Build hessian!
       //========================================================================================================
-      getHessian_parabolicPotential(N, atomSet1, hess_ENM, R_cutoff, printDetails);                            
+  getHessian_parabolicPotential(N, atomSet1, hess_ENM, forceConstantsMatrix, R_cutoff, printDetails);                            
       //========================================================================================================
       
       //Here, we are testing normal mode calculation and beta factor calculation with mass weighted coordinates!
-      if(mass_weight_type)
-	{
+  if(mass_weight_type)
+	  {
 	  applyMassWeighting(N, hess_ENM, atomSet1);
-	}
+	  }
       
       //Solve eigenvalues and eigenvectors of hessian!
       //========================================================================================================
-      solveSymEigens(N, hess_ENM, W, A, printDetails);
+  solveSymEigens(N, hess_ENM, W, A, printDetails);
       //========================================================================================================
       
-      if(mass_weight_type)
-	{
+  if(mass_weight_type)
+	  {
 	  revertMassWeighting(N, A, atomSet1, printDetails);
-	}
+	  }
       
       fprintf(stdout, "\nCalculated eigenvalues and eigenvectors.\n\n");
       //========================================================================================================
       
       //Unshift CA coordinates back to original values!
       //========================================================================================================
-      for(i=0; i<N; i++)
-	{
-	  atomSet1[i].x=(atomSet1[i].x+deviateDist);
-	  atomSet1[i].y=(atomSet1[i].y+deviateDist);
-	  atomSet1[i].z=(atomSet1[i].z+deviateDist);
-	}
+      /* for(i=0; i<N; i++) */
+      /* 	{ */
+      /* 	  atomSet1[i].x=(atomSet1[i].x+deviateDist); */
+      /* 	  atomSet1[i].y=(atomSet1[i].y+deviateDist); */
+      /* 	  atomSet1[i].z=(atomSet1[i].z+deviateDist); */
+      /* 	} */
       //========================================================================================================
 
-      calculateBetaFactors4CA(N, atomSet1, W, A, num_modes, betafile);
+      bool fit2Experimental = false;
+      calculateBetaFactors4CA(N, atomSet1, W, A, num_modes, betafile, fit2Experimental);
 
       if(strncmp (extension, "pdb", 3)==0)
 	{
@@ -1088,8 +1198,15 @@ int main (int argc, char **argv)
       free(W);
       free(A);
       for (i=0; i<3*N; i++)
-	free(hess_ENM[i]);
+	      {
+          free(hess_ENM[i]);
+        }
       free(hess_ENM);
+      for (i=0; i<N; i++)
+        {
+          free(forceConstantsMatrix[i]);
+        }
+      free(forceConstantsMatrix);
     }
 
   free(atomSet1);
