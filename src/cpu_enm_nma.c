@@ -704,7 +704,7 @@ void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int 
     else
       fprintf(BETA_FILE, "%.2lf\n", eightPISquaredby3*averageDisplacementSquared[j]);
     }
-  fprintf(stderr, "HERE I AM\n");  
+   
   betaFactorCrossCorrelation(N, betaFactorsExperimental, averageDisplacementSquared);
 
 /*   //Print results to file */
@@ -720,6 +720,124 @@ void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int 
 /*   fprintf(BETA_FILE, "%d\t%.2lf\t%.2lf\n", atomSet[j].resNo, atomSet[j].beta, averageDisplacementSquared[j]*(totalAreaExperimental/totalAreaTheoretical) ); */
 /*     } */
   fclose(BETA_FILE);
+}
+void calculateCrossCorrelationsCA(int N, int k_max, double *lambdas, double *A, double **forceConstantsMatrix, bool normalized, bool save_matrix_on)
+{
+
+  int i=0;
+  int j=0;
+  int k=0;
+  int ind_3i=0;
+  int ind_3j=0;
+  double totalAreaTheoretical=0.0;
+  //double constant = 3.0*KBT;
+  double constant = 100.0;
+  //double R_i_dot_R_j = 0.0;
+  double inv_eigval = 0.0;
+
+  double **ccMatrix = (double**)malloc(N*sizeof(double*));
+  if(ccMatrix==NULL)
+    {
+      fprintf(stderr, "Malloc cannot allocate memory for ccMatrix array");
+      exit(EXIT_FAILURE);
+    }
+  
+  for (i=0; i<N; i++)
+    {
+      ccMatrix[i] = (double*)calloc((N),sizeof(double));
+      if(ccMatrix[i]==NULL)
+        {
+          fprintf(stderr, "Calloc cannot allocate memory for ccMatrix[i] array");
+          exit(EXIT_FAILURE);
+        }
+    }
+  ///////////////////////////////////////////////////////////////
+  
+  for(k=6; k<k_max; k++)
+  {  //# Start with the first nonzero mode, namely, k=6.
+    //fprintf(stderr, "HERE I AM%d\n", k);   
+    inv_eigval=(1.0/lambdas[k]);
+    //
+    for (i=0; i<N; i++)
+    {    ind_3i=3*i;
+        for (j=0; j<N; j++)
+        {
+            ind_3j=3*j;
+            //#Do the calculation for one half of the matrix
+            ccMatrix[i][j]+= (constant*(1.0/(forceConstantsMatrix[i][j]))*inv_eigval*( (A[3*N*k+ind_3i]*A[3*N*k+ind_3j]) + \
+                                              (A[3*N*k+ind_3i+1]*A[3*N*k+ind_3j+1]) + \
+                                              (A[3*N*k+ind_3i+2]*A[3*N*k+ind_3j+2])));
+        }
+    }
+  
+  }
+  fprintf(stderr, "HERE I AM ALSO%d\n", k);
+  //fprintf(stderr, "HERE I AM\n"); 
+  //# Complete the other half after all calculations
+  // for (i=0; i<N; i++)
+  //   for (j=(i+1); j< N; j++)
+  //     ccMatrix[j][i]=ccMatrix[i][j];
+
+
+
+  FILE *CCFILE=NULL;
+  
+  if(normalized==true)
+  {
+    //# Start with the first nonzero mode, namely, k=6.
+    for (i=0; i<N; i++)
+    {    for (j=0; j<N; j++)
+        {
+            ccMatrix[i][j] = ccMatrix[i][j]/(sqrt((ccMatrix[i][i])*(ccMatrix[j][j]) ));
+        }
+    }
+    CCFILE=fopen("cross_corr_norm.txt", "w");
+  }
+  else
+    CCFILE=fopen("cross_corr_non_norm.txt", "w");
+
+  if(CCFILE==NULL)
+  {
+    fprintf(stderr, "Could not create cross correlation matrix!\n");
+    exit(EXIT_FAILURE);
+  }
+
+  if(save_matrix_on==true)
+  for (i=0; i<N; i++)
+  {  for (j=0; j< N; j++)
+    {
+      fprintf(CCFILE, "%.6lf\t", ccMatrix[i][j]);
+    }
+    fprintf(CCFILE, "\n");
+  }
+// # Step 2: Return result array
+// if(normalized==True):
+//     return (cc_normalized)
+// else:
+//     return (R_i_dot_R_j)
+//   ///////////////////////////////////////////////////////////////
+
+//   for(i=0; i<N; i++)
+//     for(j=0; j<=i; j++)
+//       {
+//         for (k=6; k<k_max; k++)
+//         {
+//             deltaR_i_X_delta_R_j+=( (A[3*N*i+3*j]*A[3*N*i+3*j]) + (A[3*N*i+3*j+1]*A[3*N*i+3*j+1]) + (A[3*N*i+3*j+2]*A[3*N*i+3*j+2]) );
+//         }  
+//   }
+//   // for(j=0;j<N;j++)
+//   //   {
+//   //     displacementSquared[j]=0.0;
+//   //     displacementSquared[j]=( (A[3*N*i+3*j]*A[3*N*i+3*j]) + (A[3*N*i+3*j+1]*A[3*N*i+3*j+1]) + (A[3*N*i+3*j+2]*A[3*N*i+3*j+2]) );
+//   //     totalAreaTheoretical+=displacementSquared[j];
+//   //   }
+  fclose(CCFILE);
+  for (i=0; i<N; i++)
+  {
+    free(ccMatrix[i]);
+  }
+  free(ccMatrix);
+  //return totalAreaTheoretical;
 }
 
 
@@ -1130,15 +1248,15 @@ int main (int argc, char **argv)
         }
     }
   int j=0;
-  //Set all force constants to 1.0
-  // for (i=0; i<N; i++)
-  //   {
-  //     for (j=0; j<i; j++)
-  //       {
-  //         forceConstantsMatrix[i][j]=forceConstantsMatrix[i][j];
-          
-  //       }
-  //   }
+  //Set all diagonal force constants to 1.0. This is just a trieck to avoid nan values for on diagonal elements!
+  for (i=0; i<N; i++)
+    {
+      for (j=0; j<N; j++)
+      {
+        forceConstantsMatrix[i][j]=1.0;
+        
+      }
+    }
   //Read force constants matrix
   readForceConstantsMatrixHANM("rc15/fc_all_final_25_1p5_1p0_40_100.xvg", forceConstantsMatrix);
   //========================================================================================================
@@ -1179,7 +1297,7 @@ int main (int argc, char **argv)
 
       bool fit2Experimental = false;
       calculateBetaFactors4CA(N, atomSet1, W, A, num_modes, betafile, fit2Experimental);
-
+      calculateCrossCorrelationsCA(N, 16, W, A, forceConstantsMatrix, false, true);
       if(strncmp (extension, "pdb", 3)==0)
 	{
 	  //Write results to an all atom file!
