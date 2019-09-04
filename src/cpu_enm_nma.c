@@ -729,7 +729,7 @@ void calculateCrossCorrelationsCA(int N, int k_max, double *lambdas, double *A, 
   int k=0;
   int ind_3i=0;
   int ind_3j=0;
-  double totalAreaTheoretical=0.0;
+  // double totalAreaTheoretical=0.0;
   //double constant = 3.0*KBT;
   double constant = 100.0;
   //double R_i_dot_R_j = 0.0;
@@ -782,34 +782,49 @@ void calculateCrossCorrelationsCA(int N, int k_max, double *lambdas, double *A, 
 
   FILE *CCFILE=NULL;
   
-  if(normalized==true)
-  {
-    //# Start with the first nonzero mode, namely, k=6.
-    for (i=0; i<N; i++)
-    {    for (j=0; j<N; j++)
-        {
-            ccMatrix[i][j] = ccMatrix[i][j]/(sqrt((ccMatrix[i][i])*(ccMatrix[j][j]) ));
-        }
-    }
-    CCFILE=fopen("cross_corr_norm.txt", "w");
-  }
-  else
-    CCFILE=fopen("cross_corr_non_norm.txt", "w");
-
-  if(CCFILE==NULL)
-  {
-    fprintf(stderr, "Could not create cross correlation matrix!\n");
-    exit(EXIT_FAILURE);
-  }
+  
 
   if(save_matrix_on==true)
-  for (i=0; i<N; i++)
-  {  for (j=0; j< N; j++)
+  {
+    if(normalized==true)
     {
-      fprintf(CCFILE, "%.6lf\t", ccMatrix[i][j]);
+      CCFILE=fopen("cross_corr_norm.txt", "w");
+         //# Start with the first nonzero mode, namely, k=6.
+      for (i=0; i<N; i++)
+      {   
+          for (j=0; j<N; j++)
+          {
+              fprintf(CCFILE, "%.6lf\t", ccMatrix[i][j]/(sqrt((ccMatrix[i][i])*(ccMatrix[j][j]) ))); ;
+          }
+          fprintf(CCFILE, "\n");
+      }
+   
     }
-    fprintf(CCFILE, "\n");
-  }
+    else
+    {
+      CCFILE=fopen("cross_corr_non_norm.txt", "w");
+      for (i=0; i<N; i++)
+      {    
+          for (j=0; j<N; j++)
+          {
+              fprintf(CCFILE, "%.6lf\t", ccMatrix[i][j]); ;
+          }
+          fprintf(CCFILE, "\n");
+      }
+    }
+    if(CCFILE==NULL)
+    {
+      fprintf(stderr, "Could not create cross correlation matrix!\n");
+      exit(EXIT_FAILURE);
+    }
+  
+  }// for (i=0; i<N; i++)
+  // {  for (j=0; j< N; j++)
+  //   {
+  //     fprintf(CCFILE, "%.6lf\t", ccMatrix[i][j]);
+  //   }
+  //   fprintf(CCFILE, "\n");
+  // }
 // # Step 2: Return result array
 // if(normalized==True):
 //     return (cc_normalized)
@@ -1297,7 +1312,7 @@ int main (int argc, char **argv)
 
       bool fit2Experimental = false;
       calculateBetaFactors4CA(N, atomSet1, W, A, num_modes, betafile, fit2Experimental);
-      calculateCrossCorrelationsCA(N, 16, W, A, forceConstantsMatrix, false, true);
+      calculateCrossCorrelationsCA(N, 106, W, A, forceConstantsMatrix, true, true);
       if(strncmp (extension, "pdb", 3)==0)
 	{
 	  //Write results to an all atom file!
