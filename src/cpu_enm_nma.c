@@ -370,7 +370,7 @@ void getHessian_parabolicPotential(int N/*System Size*/, CAcoord *atomSet, doubl
       fclose(MATRIX_FILE);
   }
 }
-void writeNMDformat(int N/*Number of CA atoms*/, CAcoord *atomSet, double *A, char *NMD_file_name, int num_of_modes, double scaleAmplitudes)
+void writeNMDformat(int N/*Number of CA atoms*/, CAcoord *atomSet, double *W, double *A, char *NMD_file_name, int num_of_modes, double scaleAmplitudes)
 {
   //Purpose: NMWiz is a plugin for normal mode analysis implemented in VMD.
   //         NMD is file format for visualization of normal modes. NMWiz and NMD are described in
@@ -439,7 +439,7 @@ void writeNMDformat(int N/*Number of CA atoms*/, CAcoord *atomSet, double *A, ch
     }
   for(i=6;i<(num_of_modes+6);i++) 
     {
-      fprintf(NMD_FILE, "\nmode %d ", (i-5));
+      fprintf(NMD_FILE, "\nmode %d %.5lf ", (i-5), W[i]);
       for(j=0;j<N;j++)
 	{
 	  fprintf(NMD_FILE, "%.3lf %.3lf %.3lf ", (coeff[i])*A[3*N*i+3*j], (coeff[i])*A[3*N*i+3*j+1], (coeff[i])*A[3*N*i+3*j+2]);
@@ -619,7 +619,7 @@ double betaFactorCrossCorrelation(int num_of_C_alphas, double *betaFactorsExperi
   return(acos(scalarProduct/sqrt(normTheo*normExp)));
 }
 
-void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int num_of_modes, char *betaFactorFile, bool fit2Experimental)
+void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int num_modes, char *betaFactorFile, bool fit2Experimental)
 {
   int i=0;
   int j=0;
@@ -652,12 +652,12 @@ void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int 
       totalAreaExperimental+=atomSet[j].beta;
     }
   
-  if( ((num_of_modes+6)>(3*N-6)) || ((num_of_modes)>(3*N-6)) ) 
+  if( ((num_modes+6)>(3*N-6)) || ((num_modes)>(3*N-6)) ) 
     {
       fprintf(stderr, "WARNING: Number of normal modes can not exceed 3*N-6, where N is number of CA atoms!\n");
-      num_of_modes=(3*N-6);
+      num_modes=(3*N-6);
     }
-  double totalAreaTheoretical[num_of_modes+1]; //the last plus one is for average coefficient.
+  double totalAreaTheoretical[num_modes+1]; //the last plus one is for average coefficient.
   //double allDisplacementSquared[num_of_modes][N];
   //fprintf(stderr, "HERE I AM\n");
   //Here, I am trying to get the sum of squares of displacement for different modes!
@@ -667,7 +667,7 @@ void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int 
     }
 
 
-  for(i=6;i<(num_of_modes+6);i++) 
+  for(i=6;i<(num_modes+6);i++) 
     {
       calculateIsotropicDisplacementSquared(N, displacementSquared, A, i);
       totalAreaTheoretical[i-6]=0.0;
@@ -683,12 +683,12 @@ void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int 
     }
 
   //Here, I am averaging sum of squares of displacements for each CA atom and calculating total area under this curve!
-  totalAreaTheoretical[num_of_modes]=0.0;
+  totalAreaTheoretical[num_modes]=0.0;
   for(j=0;j<N;j++)
     {
       
       //      averageDisplacementSquared[j]=averageDisplacementSquared[j]/((double)num_of_modes);
-      totalAreaTheoretical[num_of_modes]+=averageDisplacementSquared[j];
+      totalAreaTheoretical[num_modes]+=averageDisplacementSquared[j];
     }
   
   for(j=0;j<N;j++)
@@ -700,7 +700,7 @@ void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int 
 	//   //	  fprintf(BETA_FILE, "%.2lf\t", allDisplacementSquared[i-6][j]);
 	// }
     if(fit2Experimental)
-      fprintf(BETA_FILE, "%.2lf\n", averageDisplacementSquared[j]*(totalAreaExperimental/totalAreaTheoretical[num_of_modes]));
+      fprintf(BETA_FILE, "%.2lf\n", averageDisplacementSquared[j]*(totalAreaExperimental/totalAreaTheoretical[num_modes]));
     else
       fprintf(BETA_FILE, "%.2lf\n", eightPISquaredby3*averageDisplacementSquared[j]);
     }
@@ -721,7 +721,8 @@ void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int 
 /*     } */
   fclose(BETA_FILE);
 }
-void calculateCrossCorrelationsCA(int N, int k_max, double *lambdas, double *A, double **forceConstantsMatrix, bool normalized, bool save_matrix_on)
+void calculateCrossCorrelationsCA(int N, double *lambdas, double *A, int num_modes, char *crossCorrelationsFile,\
+                    double **forceConstantsMatrix, bool normalized, bool save_matrix_on)
 {
 
   int i=0;
@@ -753,7 +754,7 @@ void calculateCrossCorrelationsCA(int N, int k_max, double *lambdas, double *A, 
     }
   ///////////////////////////////////////////////////////////////
   
-  for(k=6; k<k_max; k++)
+  for(k=6; k<num_modes; k++)
   {  //# Start with the first nonzero mode, namely, k=6.
     //fprintf(stderr, "HERE I AM%d\n", k);   
     inv_eigval=(1.0/lambdas[k]);
@@ -771,7 +772,7 @@ void calculateCrossCorrelationsCA(int N, int k_max, double *lambdas, double *A, 
     }
   
   }
-  fprintf(stderr, "HERE I AM ALSO%d\n", k);
+  //fprintf(stderr, "HERE I AM ALSO%d\n", k);
   //fprintf(stderr, "HERE I AM\n"); 
   //# Complete the other half after all calculations
   // for (i=0; i<N; i++)
@@ -818,34 +819,8 @@ void calculateCrossCorrelationsCA(int N, int k_max, double *lambdas, double *A, 
       exit(EXIT_FAILURE);
     }
   
-  }// for (i=0; i<N; i++)
-  // {  for (j=0; j< N; j++)
-  //   {
-  //     fprintf(CCFILE, "%.6lf\t", ccMatrix[i][j]);
-  //   }
-  //   fprintf(CCFILE, "\n");
-  // }
-// # Step 2: Return result array
-// if(normalized==True):
-//     return (cc_normalized)
-// else:
-//     return (R_i_dot_R_j)
-//   ///////////////////////////////////////////////////////////////
+  }
 
-//   for(i=0; i<N; i++)
-//     for(j=0; j<=i; j++)
-//       {
-//         for (k=6; k<k_max; k++)
-//         {
-//             deltaR_i_X_delta_R_j+=( (A[3*N*i+3*j]*A[3*N*i+3*j]) + (A[3*N*i+3*j+1]*A[3*N*i+3*j+1]) + (A[3*N*i+3*j+2]*A[3*N*i+3*j+2]) );
-//         }  
-//   }
-//   // for(j=0;j<N;j++)
-//   //   {
-//   //     displacementSquared[j]=0.0;
-//   //     displacementSquared[j]=( (A[3*N*i+3*j]*A[3*N*i+3*j]) + (A[3*N*i+3*j+1]*A[3*N*i+3*j+1]) + (A[3*N*i+3*j+2]*A[3*N*i+3*j+2]) );
-//   //     totalAreaTheoretical+=displacementSquared[j];
-//   //   }
   fclose(CCFILE);
   for (i=0; i<N; i++)
   {
@@ -955,12 +930,14 @@ void revertMassWeighting(int N, double *A, CAcoord *atomSet, int printDetails)
 }
 void usage()
 {
-    fputs("\nUsage: ./cpu_enm_nma.exe -i prt1.pdb -o nma_file.pdb -R 10.0 -n 10 -s 1.0 -m 0\n", stdout);
+    fputs("\nUsage: ./cpu_enm_nma.exe -i prt1.pdb -o normalModes.nmd -R 15.0 -n 10 -s 1.0 -m 0\n", stdout);
 
     fputs("-i: Name of input file. (File has to be in pdb format.)                \n\n", stdout);
-    fputs("-o: Name of output file. (File is written in pdb format.)                \n", stdout);
+    fputs("-o: Name of output file.                                                 \n", stdout);
     fputs("    Output file format is deduced implicitly based on extension of       \n", stdout);
-    fputs("    output file name. There are two options: nmd or pdb.               \n\n", stdout);
+    fputs("    output file name. There are two options: nmd or pdb. If output is    \n", stdout);
+    fputs("    in nmd format, like normalModes.nmd, you can visualize it with       \n", stdout);
+    fputs("    Normal Mode Wizard plugin of VMD program.                          \n\n", stdout);
 
     fputs("-R: Cutoff radius in Angstrom units (10 Angstrom is default value).      \n", stdout);
     fputs("    Cutoff radius generally take values between 7 and 20 Angstroms.    \n\n", stdout);
@@ -979,6 +956,10 @@ void usage()
     fputs("-b: Name of file for theoretical beta factors.                            \n", stdout);
     fputs("    The first column of this file is experimental CA beta factors.        \n", stdout);
     fputs("    The last column of this file is average theoretical CA beta factors.\n\n", stdout);
+
+    fputs("-c: Name of file for dynamical cross-coreelations file.                            \n", stdout);
+    fputs("    The first column of this file is experimental CA beta factors.        \n", stdout);
+    fputs("    The last column of this file is average theoretical CA beta factors.\n\n", stdout);
 }
 void readForceConstantsMatrixHANM(char *fcFile, double **forceConstantsMatrix)
 {
@@ -989,19 +970,19 @@ void readForceConstantsMatrixHANM(char *fcFile, double **forceConstantsMatrix)
     fprintf(stderr, "No such file:%s\n", fcFile); 
     exit(EXIT_FAILURE); 
   }
-//////////////////////////////////////////////////////////
-//char c_buffer[20]; //Stands for (c)haracter buffer!!!
-char *c_buffer;
-//memset(c_buffer,'\0', 20);
+  //////////////////////////////////////////////////////////
+  //char c_buffer[20]; //Stands for (c)haracter buffer!!!
+  char *c_buffer;
+  //memset(c_buffer,'\0', 20);
 
-char line[100];
-memset(line,'\0', 100);
+  char line[100];
+  memset(line,'\0', 100);
 
-char *array[3];
-//Just a conversion factor from kJ/mol-nm^2 to kcal/mol-Angstrom^2
-double conversionFactor=23.9E-2;
+  char *array[3];
+  //Just a conversion factor from kJ/mol-nm^2 to kcal/mol-Angstrom^2
+  double conversionFactor=23.9E-2;
 
-while(1)
+  while(1)
   {
     //      line_ptr=;
   if(fgets(line, sizeof(line),fcdata)==NULL) break;
@@ -1021,27 +1002,8 @@ while(1)
     forceConstantsMatrix[atoi(array[0])-1][atoi(array[1])-1]=atof(array[2]);
     forceConstantsMatrix[atoi(array[1])-1][atoi(array[0])-1]=atof(array[2]);
 
-  // size_t n = 0;
-  // for(n = 0; n < sizeof line; ++n)
-  //   line[n] ? putchar(line[n]) : fputs("\\0", stdout);
 
-    
-  // if((strncmp("ATOM  ", line, 6))==0)
-  // {
-  // memset(c_buffer,'\0', 9);
-  // strncpy(c_buffer,         line+6,   5);
-  // info[i].serial=atoi(c_buffer);
-
-  // memset(info[i].name,'\0', 5);
-  // strncpy(info[i].name,      line+12,  4);
-
-  // info[i].altLoc=line[16];
-
-  // memset(info[i].resName,'\0', 4);
-  // strncpy(info[i].resName,   line+17,  3);
-  // }
   }
-//////////////////////////////////////////////////////////
 
   fclose(fcdata);
 }
@@ -1067,18 +1029,21 @@ int main (int argc, char **argv)
   char  *inputfile=(char *)malloc(255*sizeof(char));
   char  *outputfile=(char *)malloc(255*sizeof(char));
   char  *betafile=(char *)malloc(255*sizeof(char));
+  char  *crossCorrelationsFile=(char *)malloc(255*sizeof(char));
+  char  *forceConstantsFile=(char *)malloc(255*sizeof(char));
   //Now, lets clean inside filenames.
   memset (inputfile,'\0',255);
   memset (outputfile,'\0',255);
   memset (betafile,'\0',255);
-  if( (inputfile==NULL) || (outputfile==NULL) || (betafile==NULL))
+  memset (crossCorrelationsFile, '\0', 255);
+  if( (inputfile==NULL) || (outputfile==NULL) || (betafile==NULL) || (crossCorrelationsFile==NULL) || (forceConstantsFile==NULL))
     {
       fprintf(stderr, "Warning:  Can not allocate space for file names!\n");
     }
 
-  double R_cutoff=10.0;                    
+  double R_cutoff=15.0;                    
   
-  while ((option = getopt(argc, argv,"hi:o:R:n:s:m:b:")) != -1) 
+  while ((option = getopt(argc, argv,"hi:o:R:n:s:m:b:c:f:")) != -1) 
     {
       switch (option) 
       {
@@ -1095,6 +1060,10 @@ int main (int argc, char **argv)
       case 'm' : mass_weight_type=atoi(optarg); 
         break;
       case 'b' : betafile=optarg; 
+        break;
+      case 'c' : crossCorrelationsFile=optarg; 
+        break;
+      case 'f' : forceConstantsFile=optarg; 
         break;
       case 'h' : usage(); 
         exit(EXIT_FAILURE);
@@ -1312,20 +1281,20 @@ int main (int argc, char **argv)
 
       bool fit2Experimental = false;
       calculateBetaFactors4CA(N, atomSet1, W, A, num_modes, betafile, fit2Experimental);
-      calculateCrossCorrelationsCA(N, 106, W, A, forceConstantsMatrix, true, true);
+      calculateCrossCorrelationsCA(N, W, A, num_modes, crossCorrelationsFile, forceConstantsMatrix, true, true);
       if(strncmp (extension, "pdb", 3)==0)
-	{
-	  //Write results to an all atom file!
-	  //========================================================================================================
-	  bool writeInitialPdb=true;
-	  write_nm_allatom2pdb(N, info1, W, A, outputfile, num_modes, printDetails, writeInitialPdb, scaleAmplitudes);
-	  //========================================================================================================
-	}
+      {
+        //Write results to an all atom file!
+        //========================================================================================================
+        bool writeInitialPdb=true;
+        write_nm_allatom2pdb(N, info1, W, A, outputfile, num_modes, printDetails, writeInitialPdb, scaleAmplitudes);
+        //========================================================================================================
+      }
         if(strncmp (extension, "nmd", 3)==0)
           {
             //Write results in NMD format so that NMWiz can analyze them.
             //========================================================================================================
-            writeNMDformat(N, atomSet1, A, outputfile, num_modes, scaleAmplitudes);
+            writeNMDformat(N, atomSet1, W, A, outputfile, num_modes, scaleAmplitudes);
             //========================================================================================================
           }
       free(W);
