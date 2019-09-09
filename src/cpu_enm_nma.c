@@ -721,8 +721,8 @@ void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int 
 /*     } */
   fclose(BETA_FILE);
 }
-void calculateCrossCorrelationsCA(int N, double *lambdas, double *A, int num_modes, char *crossCorrelationsFile,\
-                    double **forceConstantsMatrix, bool normalized, bool save_matrix_on)
+void calculateCrossCorrelationsCA(int N, double *lambdas, double *A, int num_modes, int crossCorrelationsType, double **forceConstantsMatrix,\
+                                 bool save_matrix_on)
 {
 
   int i=0;
@@ -782,8 +782,20 @@ void calculateCrossCorrelationsCA(int N, double *lambdas, double *A, int num_mod
 
 
   FILE *CCFILE=NULL;
-  
-  
+  bool normalized=true;
+  if(crossCorrelationsType==0)
+  {
+    normalized=false;
+  }
+  else if (crossCorrelationsType==1) 
+  {
+    normalized=true;
+  }
+  else {
+    fprintf(stderr, "Warning: Unknown cross-correlation type encountered!\n");
+    fprintf(stderr, "If you want your cross-correlations to be normalized, you must write '-c 1' when running the program\n");
+    fprintf(stderr, "If you want your cross-correlations to be non-normalized, you must write '-c 0' when running the program\n");
+  }
 
   if(save_matrix_on==true)
   {
@@ -930,7 +942,7 @@ void revertMassWeighting(int N, double *A, CAcoord *atomSet, int printDetails)
 }
 void usage()
 {
-    fputs("\nUsage: ./cpu_enm_nma.exe -i prt1.pdb -o normalModes.nmd -R 15.0 -n 10 -s 1.0 -m 0\n", stdout);
+    fputs("\nUsage: ./cpu_enm_nma.exe -i prt1.pdb -o normalModes.nmd -R 15.0 -n 10 -s 1.0 -m 0 -b myBfactors.dat -c 1\n", stdout);
 
     fputs("-i: Name of input file. (File has to be in pdb format.)                \n\n", stdout);
     fputs("-o: Name of output file.                                                 \n", stdout);
@@ -957,9 +969,9 @@ void usage()
     fputs("    The first column of this file is experimental CA beta factors.        \n", stdout);
     fputs("    The last column of this file is average theoretical CA beta factors.\n\n", stdout);
 
-    fputs("-c: Name of file for dynamical cross-coreelations file.                            \n", stdout);
-    fputs("    The first column of this file is experimental CA beta factors.        \n", stdout);
-    fputs("    The last column of this file is average theoretical CA beta factors.\n\n", stdout);
+    fputs("-c: Type for dynamical cross-correlations. If you want normalized, use 1.  \n", stdout);
+    fputs("    Otherwise, use 0.                                                      \n", stdout);
+
 }
 void readForceConstantsMatrixHANM(char *fcFile, double **forceConstantsMatrix)
 {
@@ -967,7 +979,7 @@ void readForceConstantsMatrixHANM(char *fcFile, double **forceConstantsMatrix)
   FILE *fcdata=fopen(fcFile,"r");
   if(fcdata==NULL)
   {
-    fprintf(stderr, "No such file:%s\n", fcFile); 
+    fprintf(stderr, "ERROR: No such file:%s\n", fcFile); 
     exit(EXIT_FAILURE); 
   }
   //////////////////////////////////////////////////////////
@@ -1029,20 +1041,21 @@ int main (int argc, char **argv)
   char  *inputfile=(char *)malloc(255*sizeof(char));
   char  *outputfile=(char *)malloc(255*sizeof(char));
   char  *betafile=(char *)malloc(255*sizeof(char));
-  char  *crossCorrelationsFile=(char *)malloc(255*sizeof(char));
+  int crossCorrelationsType=1;
   char  *forceConstantsFile=(char *)malloc(255*sizeof(char));
   //Now, lets clean inside filenames.
   memset (inputfile,'\0',255);
   memset (outputfile,'\0',255);
   memset (betafile,'\0',255);
-  memset (crossCorrelationsFile, '\0', 255);
-  if( (inputfile==NULL) || (outputfile==NULL) || (betafile==NULL) || (crossCorrelationsFile==NULL) || (forceConstantsFile==NULL))
+  memset (forceConstantsFile,'\0',255);
+
+  if( (inputfile==NULL) || (outputfile==NULL) || (betafile==NULL) || (forceConstantsFile==NULL))
     {
       fprintf(stderr, "Warning:  Can not allocate space for file names!\n");
     }
 
   double R_cutoff=15.0;                    
-  
+  betafile="bfactors.dat";
   while ((option = getopt(argc, argv,"hi:o:R:n:s:m:b:c:f:")) != -1) 
     {
       switch (option) 
@@ -1061,7 +1074,7 @@ int main (int argc, char **argv)
         break;
       case 'b' : betafile=optarg; 
         break;
-      case 'c' : crossCorrelationsFile=optarg; 
+      case 'c' : crossCorrelationsType=atoi(optarg); 
         break;
       case 'f' : forceConstantsFile=optarg; 
         break;
@@ -1073,7 +1086,7 @@ int main (int argc, char **argv)
         exit(EXIT_FAILURE);
       }
     }
-  //betafile="test.dat";
+
 
   if((R_cutoff<0.0))
     {
@@ -1091,6 +1104,12 @@ int main (int argc, char **argv)
   if((mass_weight_type!=0) && (mass_weight_type!=1) && (mass_weight_type!=2))
     {
       fprintf(stderr, "ERROR: Mass weight type has to be 0, 1 or 2!\n");
+      usage();
+      exit(EXIT_FAILURE);
+    }
+    if((crossCorrelationsType!=0) && (crossCorrelationsType!=1))
+    {
+      fprintf(stderr, "ERROR: Cross-Correlation type has to be 0 (non-normalized) or 1 (normalized)!\n");
       usage();
       exit(EXIT_FAILURE);
     }
@@ -1199,6 +1218,7 @@ int main (int argc, char **argv)
 	}
       
   int    printDetails=0;       //Which means obviously no!
+  
   //This is just a theoretical point but I need to deviate coordinates from equillibrium(pdb) coordinates.
   //So, I am deviating all distances 0.001 Angstrom here. For parabolic potential, it didn't not change results.
   //========================================================================================================
@@ -1242,7 +1262,10 @@ int main (int argc, char **argv)
       }
     }
   //Read force constants matrix
-  readForceConstantsMatrixHANM("rc15/fc_all_final_25_1p5_1p0_40_100.xvg", forceConstantsMatrix);
+//if(strcomp(forceConstantsFile, "no")!=0)
+//    {
+      readForceConstantsMatrixHANM("rc15/fc_all_final_25_1p5_1p0_40_100.xvg", forceConstantsMatrix);
+//    }
   //========================================================================================================
 
       //Build hessian!
@@ -1281,7 +1304,7 @@ int main (int argc, char **argv)
 
       bool fit2Experimental = false;
       calculateBetaFactors4CA(N, atomSet1, W, A, num_modes, betafile, fit2Experimental);
-      calculateCrossCorrelationsCA(N, W, A, num_modes, crossCorrelationsFile, forceConstantsMatrix, true, true);
+      calculateCrossCorrelationsCA(N, W, A, num_modes, crossCorrelationsType, forceConstantsMatrix, true);
       if(strncmp (extension, "pdb", 3)==0)
       {
         //Write results to an all atom file!
