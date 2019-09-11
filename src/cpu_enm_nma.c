@@ -443,7 +443,8 @@ void writeNMDformat(int N/*Number of CA atoms*/, CAcoord *atomSet, double *W, do
       for(j=0;j<N;j++)
 	{
 	  fprintf(NMD_FILE, "%.3lf %.3lf %.3lf ", (coeff[i])*A[3*N*i+3*j], (coeff[i])*A[3*N*i+3*j+1], (coeff[i])*A[3*N*i+3*j+2]);
-	}
+    //fprintf(NMD_FILE, "%.3lf %.3lf %.3lf ", A[3*N*i+3*j], A[3*N*i+3*j+1], A[3*N*i+3*j+2]);
+  }
     }
   
   fclose(NMD_FILE);
@@ -615,7 +616,7 @@ double betaFactorCrossCorrelation(int num_of_C_alphas, double *betaFactorsExperi
       normTheo+=(betaFactorsTheoretical[i]*betaFactorsTheoretical[i]);
       scalarProduct+=(betaFactorsExperimental[i]*betaFactorsTheoretical[i]);
     }
-  fprintf(stdout, "CROSS CORELATION=%.3lf\n", acos(scalarProduct/sqrt(normTheo*normExp)));
+  fprintf(stdout, "Cosine correlation between the experimental and the theoretical B-factors: %.3lf\n", acos(scalarProduct/sqrt(normTheo*normExp)));
   return(acos(scalarProduct/sqrt(normTheo*normExp)));
 }
 
@@ -652,9 +653,9 @@ void calculateBetaFactors4CA(int N, CAcoord *atomSet, double *W, double *A, int 
       totalAreaExperimental+=atomSet[j].beta;
     }
   
-  if( ((num_modes+6)>(3*N-6)) || ((num_modes)>(3*N-6)) ) 
+  if( ((num_modes)>(3*N-6)) ) 
     {
-      fprintf(stderr, "WARNING: Number of normal modes can not exceed 3*N-6, where N is number of CA atoms!\n");
+      fprintf(stderr, "WARNING: Number of non-zero normal modes can not exceed 3*N-6, where N is number of CA atoms!\n");
       num_modes=(3*N-6);
     }
   double totalAreaTheoretical[num_modes+1]; //the last plus one is for average coefficient.
@@ -732,7 +733,7 @@ void calculateCrossCorrelationsCA(int N, double *lambdas, double *A, int num_mod
   int ind_3j=0;
   // double totalAreaTheoretical=0.0;
   //double constant = 3.0*KBT;
-  double constant = 100.0;
+  double constant = 1.0;
   //double R_i_dot_R_j = 0.0;
   double inv_eigval = 0.0;
 
@@ -754,7 +755,7 @@ void calculateCrossCorrelationsCA(int N, double *lambdas, double *A, int num_mod
     }
   ///////////////////////////////////////////////////////////////
   
-  for(k=6; k<num_modes; k++)
+  for(k=6; k<num_modes+6; k++)
   {  //# Start with the first nonzero mode, namely, k=6.
     //fprintf(stderr, "HERE I AM%d\n", k);   
     inv_eigval=(1.0/lambdas[k]);
@@ -944,30 +945,30 @@ void usage()
 {
     fputs("\nUsage: ./cpu_enm_nma.exe -i prt1.pdb -o normalModes.nmd -R 15.0 -n 10 -s 1.0 -m 0 -b myBfactors.dat -c 1\n", stdout);
 
-    fputs("-i: Name of input file. (File has to be in pdb format.)                \n\n", stdout);
-    fputs("-o: Name of output file.                                                 \n", stdout);
-    fputs("    Output file format is deduced implicitly based on extension of       \n", stdout);
-    fputs("    output file name. There are two options: nmd or pdb. If output is    \n", stdout);
-    fputs("    in nmd format, like normalModes.nmd, you can visualize it with       \n", stdout);
-    fputs("    Normal Mode Wizard plugin of VMD program.                          \n\n", stdout);
+    fputs("-i: Name of input file. (File has to be in pdb format.)                  \n\n", stdout);
+    fputs("-o: Name of output file.                                                   \n", stdout);
+    fputs("    Output file format is deduced implicitly based on extension of         \n", stdout);
+    fputs("    output file name. There are two options: nmd or pdb. If output is      \n", stdout);
+    fputs("    in nmd format, like normalModes.nmd, you can visualize it with         \n", stdout);
+    fputs("    Normal Mode Wizard plugin of VMD program.                            \n\n", stdout);
 
-    fputs("-R: Cutoff radius in Angstrom units (10 Angstrom is default value).      \n", stdout);
-    fputs("    Cutoff radius generally take values between 7 and 20 Angstroms.    \n\n", stdout);
+    fputs("-R: Cutoff radius in Angstrom units (10 Angstrom is default value).        \n", stdout);
+    fputs("    Cutoff radius generally take values between 7 and 20 Angstroms.      \n\n", stdout);
 
-    fputs("-n: Number of normal modes to be calculated (10 is default value).       \n", stdout);
-    fputs("    If n is set to '-1', 5% of total number of modes will be used.       \n", stdout);
-    fputs("    for beta factor calculations. For details, look at reference:        \n", stdout);
-    fputs("    http://dx.doi.org/10.1016/j.bpj.2010.03.027                        \n\n", stdout);
+    fputs("-n: Number of non-zero normal modes to be calculated (10 is default value).\n", stdout);
+    fputs("    If n is set to '-1', 5% of total number of modes will be used.         \n", stdout);
+    fputs("    for beta factor calculations. For details, look at reference:          \n", stdout);
+    fputs("    http://dx.doi.org/10.1016/j.bpj.2010.03.027                          \n\n", stdout);
 
-    fputs("-s: Scale eigenvectors by a double type value (1.0 is default value).  \n\n", stdout);
+    fputs("-s: Scale eigenvectors by a double type value (1.0 is default value).    \n\n", stdout);
 
-    fputs("-m: 0 means no mass weighting hessian.                                   \n", stdout);
-    fputs("    1 means linear mass weighting.                                       \n", stdout);
-    fputs("    2 means squared mass weighting.                                    \n\n", stdout);
+    fputs("-m: 0 means no mass weighting hessian.                                     \n", stdout);
+    fputs("    1 means linear mass weighting.                                         \n", stdout);
+    fputs("    2 means squared mass weighting.                                      \n\n", stdout);
 
-    fputs("-b: Name of file for theoretical beta factors.                            \n", stdout);
-    fputs("    The first column of this file is experimental CA beta factors.        \n", stdout);
-    fputs("    The last column of this file is average theoretical CA beta factors.\n\n", stdout);
+    fputs("-b: Name of file for theoretical beta factors.                             \n", stdout);
+    fputs("    The first column of this file is experimental CA beta factors.         \n", stdout);
+    fputs("    The last column of this file is average theoretical CA beta factors. \n\n", stdout);
 
     fputs("-c: Type for dynamical cross-correlations. If you want normalized, use 1.  \n", stdout);
     fputs("    Otherwise, use 0.                                                      \n", stdout);
@@ -1021,16 +1022,16 @@ void readForceConstantsMatrixHANM(char *fcFile, double **forceConstantsMatrix)
 }
 int main (int argc, char **argv)
 {
-  fputs("================================================================\n", stdout);
-  fputs(" ======  =     =   ==     ==       o     o  o       o      o    \n", stdout);
-  fputs(" =       = =   =   = =   = =       o o   o  oo     oo     o o   \n", stdout);
-  fputs(" ====    =  =  =   =  = =  =  ***  o  o  o  o o   o o    ooooo  \n", stdout);
-  fputs(" =       =   = =   =   =   =       o   o o  o  o o  o   o     o \n", stdout);
-  fputs(" ======  =     =   =       =       o     o  o   o   o  o       o\n", stdout);
-  fputs("================================================================\n", stdout);
-  fputs("            Protein Normal Mode Calculation Program             \n", stdout);
-  fputs("                              by                                \n", stdout);
-  fputs("                     TechPinar Scientific                     \n\n", stdout);
+  fputs("==========================================================================\n", stdout);
+  fputs("      ======  =     =   ==     ==       o     o  o       o      o         \n", stdout);
+  fputs("      =       = =   =   = =   = =       o o   o  oo     oo     o o        \n", stdout);
+  fputs("      ====    =  =  =   =  = =  =  ***  o  o  o  o o   o o    ooooo       \n", stdout);
+  fputs("      =       =   = =   =   =   =       o   o o  o  o o  o   o     o      \n", stdout);
+  fputs("      ======  =     =   =       =       o     o  o   o   o  o       o     \n", stdout);
+  fputs("==========================================================================\n", stdout);
+  fputs("            Protein Normal Mode Calculation Program                       \n", stdout);
+  fputs("                              by                                          \n", stdout);
+  fputs("                     TechPinar Scientific                               \n\n", stdout);
 
   int option=0;
   int num_modes=10;
@@ -1048,6 +1049,7 @@ int main (int argc, char **argv)
   memset (outputfile,'\0',255);
   memset (betafile,'\0',255);
   memset (forceConstantsFile,'\0',255);
+  forceConstantsFile="no";
 
   if( (inputfile==NULL) || (outputfile==NULL) || (betafile==NULL) || (forceConstantsFile==NULL))
     {
@@ -1107,7 +1109,26 @@ int main (int argc, char **argv)
       usage();
       exit(EXIT_FAILURE);
     }
-    if((crossCorrelationsType!=0) && (crossCorrelationsType!=1))
+  fprintf(stdout, "Input file     : %s            \n", inputfile);
+  fprintf(stdout, "Output file    : %s            \n", outputfile);
+  fprintf(stdout, "Beta file      : %s            \n", betafile);
+  fprintf(stdout, "Cutoff radius  : %.1lf Angstrom\n", R_cutoff);  
+  char extension[4]={'\0', '\0', '\0', '\0'};
+  int length=strlen(outputfile);
+  extension[0]=outputfile[length-3];
+  extension[1]=outputfile[length-2];
+  extension[2]=outputfile[length-1];
+  fprintf(stdout, "File extension : %s\n", extension);
+  
+  if((crossCorrelationsType==0))
+    {
+      fprintf(stdout, "Non-normalized dynamical cross-correlations will be calculated!\n");
+    }
+  else if((crossCorrelationsType==1))
+    {
+      fprintf(stdout, "Normalized dynamical cross-correlations will be calculated!\n");
+    }
+  else
     {
       fprintf(stderr, "ERROR: Cross-Correlation type has to be 0 (non-normalized) or 1 (normalized)!\n");
       usage();
@@ -1115,16 +1136,6 @@ int main (int argc, char **argv)
     }
 
 
-  fprintf(stdout, "Input file     : %s            \n", inputfile);
-  fprintf(stdout, "Output file    : %s            \n", outputfile);
-  fprintf(stdout, "Beta file      : %s            \n", betafile);
-  fprintf(stdout, "Cutoff radius  : %.1lf Angstrom\n", R_cutoff);
-  char extension[4]={'\0', '\0', '\0', '\0'};
-  int length=strlen(outputfile);
-  extension[0]=outputfile[length-3];
-  extension[1]=outputfile[length-2];
-  extension[2]=outputfile[length-1];
-  fprintf(stdout, "File extension : %s\n", extension);
   if((strncmp (extension, "pdb", 3)!=0) && (strncmp (extension, "nmd", 3)!=0))
     {
       fprintf(stderr, "ERROR: %s is an unknown file format!\n", extension);
@@ -1262,10 +1273,10 @@ int main (int argc, char **argv)
       }
     }
   //Read force constants matrix
-//if(strcomp(forceConstantsFile, "no")!=0)
-//    {
-      readForceConstantsMatrixHANM("rc15/fc_all_final_25_1p5_1p0_40_100.xvg", forceConstantsMatrix);
-//    }
+  if(strcmp(forceConstantsFile, "no")!=0)
+    {
+      readForceConstantsMatrixHANM(forceConstantsFile, forceConstantsMatrix);
+    }
   //========================================================================================================
 
       //Build hessian!
