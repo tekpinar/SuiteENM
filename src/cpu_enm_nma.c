@@ -426,12 +426,12 @@ void writeNMDformat(int N/*Number of CA atoms*/, CAcoord *atomSet, double *W, do
     {
       sum=0.0;
       for(j=0;j<(3*N);j++)
-	{
-	  sum+=A[3*N*i+j]*A[3*N*i+j];
-	}
+	    {
+	      sum+=A[3*N*i+j]*A[3*N*i+j];
+	    }
       coeff[i]=sqrt(N*sum)*scaleAmplitudes;
     }
-  if( ((num_of_modes+6)>(3*N-6)) || ((num_of_modes)>(3*N-6)) ) 
+  if( ((num_of_modes)>(3*N-6)) ) 
     {
       fprintf(stderr, "WARNING: Number of normal modes can not exceed 3*N-6, where N is number of CA atoms!\n");
       fprintf(stderr, "WARNING: Number of normal modes has been reset to (3*N-6)!\n");
@@ -439,12 +439,13 @@ void writeNMDformat(int N/*Number of CA atoms*/, CAcoord *atomSet, double *W, do
     }
   for(i=6;i<(num_of_modes+6);i++) 
     {
-      fprintf(NMD_FILE, "\nmode %d %.5lf ", (i-5), W[i]);
+      //fprintf(NMD_FILE, "\nmode %d %.5lf ", (i-5), W[i]);
+      fprintf(NMD_FILE, "\nmode %d ", (i-5));
       for(j=0;j<N;j++)
-	{
+	    {
 	  fprintf(NMD_FILE, "%.3lf %.3lf %.3lf ", (coeff[i])*A[3*N*i+3*j], (coeff[i])*A[3*N*i+3*j+1], (coeff[i])*A[3*N*i+3*j+2]);
     //fprintf(NMD_FILE, "%.3lf %.3lf %.3lf ", A[3*N*i+3*j], A[3*N*i+3*j+1], A[3*N*i+3*j+2]);
-  }
+      }
     }
   
   fclose(NMD_FILE);
@@ -762,7 +763,7 @@ void calculateCrossCorrelationsCA(int N, double *lambdas, double *A, int num_mod
     //
     for (i=0; i<N; i++)
     {    ind_3i=3*i;
-        for (j=0; j<N; j++)
+        for (j=i; j<N; j++)
         {
             ind_3j=3*j;
             //#Do the calculation for one half of the matrix
@@ -776,9 +777,9 @@ void calculateCrossCorrelationsCA(int N, double *lambdas, double *A, int num_mod
   //fprintf(stderr, "HERE I AM ALSO%d\n", k);
   //fprintf(stderr, "HERE I AM\n"); 
   //# Complete the other half after all calculations
-  // for (i=0; i<N; i++)
-  //   for (j=(i+1); j< N; j++)
-  //     ccMatrix[j][i]=ccMatrix[i][j];
+  for (i=0; i<N; i++)
+    for (j=i; j<N; j++)
+      ccMatrix[j][i]=ccMatrix[i][j];
 
 
 
@@ -842,7 +843,61 @@ void calculateCrossCorrelationsCA(int N, double *lambdas, double *A, int num_mod
   free(ccMatrix);
   //return totalAreaTheoretical;
 }
+// double calculateCollectivityForMode_k(int N, int k/*Mode Number*/, double *A/*Eigenvectors*/)
+// {
+//   /*
+//   Purpose: Collectivity of a mode is calculated according to Equation 5 of 
+//   Bruschweiler R. Collective protein dynamics and nuclear spin relaxation. J Chem Phys 1995 102:3396-3403.
+//   doi:
+//   */
+//   int j=0;
+//   int ind_3j=0;
+//   double temp=0.0;
+//   double alpha=0.0;
+//   double tempSum=0.0;
+  
+//   //Calculate u_in where N is number of natoms
+//   double *u_in_squared=(double *)calloc((N), sizeof(double));
+//   if(u_in_squared==NULL)
+// 	{
+// 	  fprintf(stderr, "ERROR: I can not allocate memory for u_in_squared!\n");
+// 	  exit(EXIT_FAILURE);
+// 	}
+//   //double u_in_squared[N];
+//   for (j=0; j<N; j++)
+//     u_in_squared[j]=A[3*N*k+ind_3j]*A[3*N*k+ind_3j] + A[3*N*k+ind_3j+1]*A[3*N*k+ind_3j+1] + A[3*N*k+ind_3j+2]*A[3*N*k+ind_3j+2];
 
+//   //Calculate alpha
+//   for (j=0; j<N; j++)
+//       temp+=u_in_squared[j];
+//   // alpha=sqrt(1.0/temp);
+//   // //    print alpha
+//   // for (j=0; j<N; j++)
+//   //     u_in_squared[j]=alpha*u_in_squared[j];
+
+//   //u_in_squared_np=np.array(u_in_squared)
+
+  
+//   for (j=0; j<N; j++)
+//       tempSum+=(u_in_squared[j]*log(u_in_squared[j]));
+//   //    print tempSum
+
+//   free(u_in_squared);    
+//   return (exp(-tempSum)/N);
+
+// }
+
+// void calculateCollectivityForAllModes(int N, int num_modes/*Total Number of Modes*/, double *A/*Eigenvectors*/, char *outfile, bool save_data_on)
+// {
+//   int k=0;
+//   FILE *OUTFILE =fopen(outfile, "w");
+//   if(save_data_on)
+//     for(k=0; k<num_modes+6; k++)
+//       fprintf(stdout, "%d\t%.5lf\n", k+1, calculateCollectivityForMode_k(N, k, A));  
+//       //fprintf(OUTFILE, "%d\t%.5lf\n", k+1, calculateCollectivityForMode_k(N, k, A));  
+
+//   fclose(OUTFILE);
+// }
 
 double aa2Mass(char *residueName)
 {
@@ -1316,6 +1371,7 @@ int main (int argc, char **argv)
       bool fit2Experimental = false;
       calculateBetaFactors4CA(N, atomSet1, W, A, num_modes, betafile, fit2Experimental);
       calculateCrossCorrelationsCA(N, W, A, num_modes, crossCorrelationsType, forceConstantsMatrix, true);
+    //  calculateCollectivityForAllModes(N, num_modes, A, "collectivity.dat", true);
       if(strncmp (extension, "pdb", 3)==0)
       {
         //Write results to an all atom file!
