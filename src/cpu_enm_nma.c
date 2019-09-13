@@ -399,9 +399,9 @@ void writeNMDformat(int N/*Number of CA atoms*/, CAcoord *atomSet, double *W, do
       fprintf(stderr, "ERROR: Can not open %s file!\n", NMD_file_name);
       exit(EXIT_FAILURE);
     }
-
-  fprintf(NMD_FILE, "title %s\n", "test.pdb");
-  fprintf(NMD_FILE, "names ");
+  fprintf(NMD_FILE, "nmwiz_load %s\n", NMD_file_name);
+  fprintf(NMD_FILE, "name %s\n", "protein");
+  fprintf(NMD_FILE, "atomnames ");
   for(i=0; i<N; i++) fprintf(NMD_FILE, "CA ");
 
   fprintf(NMD_FILE, "\nresnames ");
@@ -1087,6 +1087,8 @@ void readForceConstantsMatrixPatriceKoehl(int N, char *fcFile, double **forceCon
   force constants affect cross-correlations, perturbation response and collectivity etc. 
   */
   int i=0;
+  int k=0, l=0;
+  double forceConstant=0.0;
   char line[100];
   memset(line,'\0', 100);
   //Read a custom force constants matrix.
@@ -1104,8 +1106,12 @@ void readForceConstantsMatrixPatriceKoehl(int N, char *fcFile, double **forceCon
     if(line[0]!='#')
     {
       i++;
-      if(i>N && i<N+10)
+      if(i>N+1 && i<N+10)
+      {
+        sscanf(line, "%d %d %lf", &k, &l, &forceConstant);
+        forceConstantsMatrix[k-1][l-1]=forceConstant;
         fprintf(stderr, "%s", line);
+      }
     }//c_buffer=strtok(line, " ");
     //int i=0;
   //   while(c_buffer != NULL)
