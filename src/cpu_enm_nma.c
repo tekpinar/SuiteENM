@@ -843,61 +843,66 @@ void calculateCrossCorrelationsCA(int N, double *lambdas, double *A, int num_mod
   free(ccMatrix);
   //return totalAreaTheoretical;
 }
-// double calculateCollectivityForMode_k(int N, int k/*Mode Number*/, double *A/*Eigenvectors*/)
-// {
-//   /*
-//   Purpose: Collectivity of a mode is calculated according to Equation 5 of 
-//   Bruschweiler R. Collective protein dynamics and nuclear spin relaxation. J Chem Phys 1995 102:3396-3403.
-//   doi:
-//   */
-//   int j=0;
-//   int ind_3j=0;
-//   double temp=0.0;
-//   double alpha=0.0;
-//   double tempSum=0.0;
+double calculateCollectivityForMode_k(int N, int k/*Mode Number*/, double *A/*Eigenvectors*/)
+{
+  /*
+  Purpose: Collectivity of a mode is calculated according to Equation 5 of 
+  Bruschweiler R. Collective protein dynamics and nuclear spin relaxation. J Chem Phys 1995 102:3396-3403.
+  doi:
+  */
+  int j=0;
+  int ind_3j=0;
+  double temp=0.0;
+  double alpha=0.0;
+  double tempSum=0.0;
   
-//   //Calculate u_in where N is number of natoms
-//   double *u_in_squared=(double *)calloc((N), sizeof(double));
-//   if(u_in_squared==NULL)
-// 	{
-// 	  fprintf(stderr, "ERROR: I can not allocate memory for u_in_squared!\n");
-// 	  exit(EXIT_FAILURE);
-// 	}
-//   //double u_in_squared[N];
-//   for (j=0; j<N; j++)
-//     u_in_squared[j]=A[3*N*k+ind_3j]*A[3*N*k+ind_3j] + A[3*N*k+ind_3j+1]*A[3*N*k+ind_3j+1] + A[3*N*k+ind_3j+2]*A[3*N*k+ind_3j+2];
+  //Calculate u_in where N is number of natoms
+  double *u_in_squared=(double *)calloc((N), sizeof(double));
+  if(u_in_squared==NULL)
+	{
+	  fprintf(stderr, "ERROR: I can not allocate memory for u_in_squared!\n");
+	  exit(EXIT_FAILURE);
+	}
+  //double u_in_squared[N];
+  for (j=0; j<N; j++)
+  {
+    ind_3j=3*j;
+    u_in_squared[j]=A[3*N*k+ind_3j]*A[3*N*k+ind_3j] + A[3*N*k+ind_3j+1]*A[3*N*k+ind_3j+1] + A[3*N*k+ind_3j+2]*A[3*N*k+ind_3j+2];
+    //fprintf(stderr, "%d\t%lf\n", j, u_in_squared[j]);
+  }
+  //Calculate alpha
+  for (j=0; j<N; j++)
+  {
+    temp+=u_in_squared[j];
+  }
+  alpha=sqrt(1.0/temp);
+  //    print alpha
+  for (j=0; j<N; j++)
+      u_in_squared[j]=alpha*u_in_squared[j];
 
-//   //Calculate alpha
-//   for (j=0; j<N; j++)
-//       temp+=u_in_squared[j];
-//   // alpha=sqrt(1.0/temp);
-//   // //    print alpha
-//   // for (j=0; j<N; j++)
-//   //     u_in_squared[j]=alpha*u_in_squared[j];
-
-//   //u_in_squared_np=np.array(u_in_squared)
+  //u_in_squared_np=np.array(u_in_squared)
 
   
-//   for (j=0; j<N; j++)
-//       tempSum+=(u_in_squared[j]*log(u_in_squared[j]));
-//   //    print tempSum
+  for (j=0; j<N; j++)
+  {    tempSum+=(u_in_squared[j]*log(u_in_squared[j]));
+  //    print tempSum
+  }
+  free(u_in_squared);    
+  return (exp(-tempSum)/N);
 
-//   free(u_in_squared);    
-//   return (exp(-tempSum)/N);
+}
 
-// }
+void calculateCollectivityForAllModes(int N, int num_modes/*Total Number of Modes*/, double *A/*Eigenvectors*/, char *outfile, bool save_data_on)
+{
+  int k=0;
+  FILE *OUTFILE =fopen(outfile, "w");
+  if(save_data_on)
+    for(k=0; k<num_modes+6; k++)
+      //fprintf(stdout, "%d\t%.5lf\n", k+1, calculateCollectivityForMode_k(N, k, A));  
+      fprintf(OUTFILE, "%d\t%.5lf\n", k+1, calculateCollectivityForMode_k(N, k, A));  
 
-// void calculateCollectivityForAllModes(int N, int num_modes/*Total Number of Modes*/, double *A/*Eigenvectors*/, char *outfile, bool save_data_on)
-// {
-//   int k=0;
-//   FILE *OUTFILE =fopen(outfile, "w");
-//   if(save_data_on)
-//     for(k=0; k<num_modes+6; k++)
-//       fprintf(stdout, "%d\t%.5lf\n", k+1, calculateCollectivityForMode_k(N, k, A));  
-//       //fprintf(OUTFILE, "%d\t%.5lf\n", k+1, calculateCollectivityForMode_k(N, k, A));  
-
-//   fclose(OUTFILE);
-// }
+  fclose(OUTFILE);
+}
 
 double aa2Mass(char *residueName)
 {
@@ -1073,6 +1078,51 @@ void readForceConstantsMatrixHANM(char *fcFile, double **forceConstantsMatrix)
 
   }
 
+  fclose(fcdata);
+}
+void readForceConstantsMatrixPatriceKoehl(int N, char *fcFile, double **forceConstantsMatrix)
+{
+  /*Patrice Koehl wrote an optimization algorithm that modify the force constants 
+  according to the allosteric response of a protein. I am trying to see how these new 
+  force constants affect cross-correlations, perturbation response and collectivity etc. 
+  */
+  int i=0;
+  char line[100];
+  memset(line,'\0', 100);
+  //Read a custom force constants matrix.
+  FILE *fcdata=fopen(fcFile,"r");
+  if(fcdata==NULL)
+  {
+    fprintf(stderr, "ERROR: No such file:%s\n", fcFile); 
+    exit(EXIT_FAILURE); 
+  }
+  while(1)
+  {
+    //      line_ptr=;
+    if(fgets(line, sizeof(line),fcdata)==NULL) break;
+    
+    if(line[0]!='#')
+    {
+      i++;
+      if(i>N && i<N+10)
+        fprintf(stderr, "%s", line);
+    }//c_buffer=strtok(line, " ");
+    //int i=0;
+  //   while(c_buffer != NULL)
+  //   {
+
+  //     array[i++]=c_buffer;
+      
+  //     c_buffer = strtok (NULL, " ");
+  //   }
+  // //fprintf(stdout, "%s\t%s\t%s\n", array[0], array[1], array[2]);
+  //   //forceConstantsMatrix[atoi(array[0])-1][atoi(array[1])-1]=conversionFactor*atof(array[2]);
+  //   //forceConstantsMatrix[atoi(array[1])-1][atoi(array[0])-1]=conversionFactor*atof(array[2]);
+  //   forceConstantsMatrix[atoi(array[0])-1][atoi(array[1])-1]=atof(array[2]);
+  //   forceConstantsMatrix[atoi(array[1])-1][atoi(array[0])-1]=atof(array[2]);
+
+
+  }
   fclose(fcdata);
 }
 int main (int argc, char **argv)
@@ -1318,6 +1368,8 @@ int main (int argc, char **argv)
         }
     }
   int j=0;
+  readForceConstantsMatrixPatriceKoehl(N, forceConstantsFile, forceConstantsMatrix);
+  
   //Set all diagonal force constants to 1.0. This is just a trieck to avoid nan values for on diagonal elements!
   for (i=0; i<N; i++)
     {
@@ -1330,7 +1382,7 @@ int main (int argc, char **argv)
   //Read force constants matrix
   if(strcmp(forceConstantsFile, "no")!=0)
     {
-      readForceConstantsMatrixHANM(forceConstantsFile, forceConstantsMatrix);
+      //readForceConstantsMatrixHANM(forceConstantsFile, forceConstantsMatrix);
     }
   //========================================================================================================
 
@@ -1371,7 +1423,7 @@ int main (int argc, char **argv)
       bool fit2Experimental = false;
       calculateBetaFactors4CA(N, atomSet1, W, A, num_modes, betafile, fit2Experimental);
       calculateCrossCorrelationsCA(N, W, A, num_modes, crossCorrelationsType, forceConstantsMatrix, true);
-    //  calculateCollectivityForAllModes(N, num_modes, A, "collectivity.dat", true);
+      calculateCollectivityForAllModes(N, num_modes, A, "collectivity.dat", true);
       if(strncmp (extension, "pdb", 3)==0)
       {
         //Write results to an all atom file!
