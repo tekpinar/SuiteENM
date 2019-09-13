@@ -1374,29 +1374,52 @@ int main (int argc, char **argv)
         }
     }
   int j=0;
-  readForceConstantsMatrixPatriceKoehl(N, forceConstantsFile, forceConstantsMatrix);
   
   //Set all diagonal force constants to 1.0. This is just a trieck to avoid nan values for on diagonal elements!
   for (i=0; i<N; i++)
     {
-      for (j=0; j<N; j++)
+      for (j=i; j<N; j++)
       {
         forceConstantsMatrix[i][j]=1.0;
+        forceConstantsMatrix[j][i]=1.0;
         
       }
     }
   //Read force constants matrix
   if(strcmp(forceConstantsFile, "no")!=0)
-    {
-      //readForceConstantsMatrixHANM(forceConstantsFile, forceConstantsMatrix);
-    }
+  {
+    readForceConstantsMatrixHANM(forceConstantsFile, forceConstantsMatrix);
+    //readForceConstantsMatrixPatriceKoehl(N, forceConstantsFile, forceConstantsMatrix);
+  }
   //========================================================================================================
 
       //Build hessian!
       //========================================================================================================
   getHessian_parabolicPotential(N, atomSet1, hess_ENM, forceConstantsMatrix, R_cutoff, printDetails);                            
       //========================================================================================================
-      
+  /*Unfortunately, there are some zero force constants in Patrice's minimization algorithm,
+  These values are zero despite being within the cutoff distance. These values are causing nan values when calcu-
+  lating cross-correlation matrix. So, I have to make them 1.0 after the hessian computation so that they will not
+  mess cross-correlation calculations!
+  */
+
+  // if(strcmp(forceConstantsFile, "no")!=0)
+  // {
+  //   //readForceConstantsMatrixHANM(forceConstantsFile, forceConstantsMatrix);
+  //   for (i=0; i<N; i++)
+  //   {
+  //     for (j=i; j<N; j++)
+  //     {
+  //       if(fabs(forceConstantsMatrix[i][j]) <0.000001)
+  //       {
+  //         forceConstantsMatrix[j][i]=1.0;
+  //         forceConstantsMatrix[i][j]=1.0;
+          
+  //       }
+  //     }
+  //   }
+  // }
+
       //Here, we are testing normal mode calculation and beta factor calculation with mass weighted coordinates!
   if(mass_weight_type)
 	  {
