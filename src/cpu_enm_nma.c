@@ -325,21 +325,23 @@ void getHessian_parabolicPotential(int N/*System Size*/, CAcoord *atomSet, doubl
   int i=0, j=0, k=0, l=0;
   //First of all, zero all hessian elements!
   for(i=0; i<(3*N); i++)
-    for(j=0;j<(3*N); j++)
+    for(j=i;j<(3*N); j++)
+    {
       Hessian[i][j]=0.0;
-
+      Hessian[j][i]=0.0;
+    }
   //Now, you can calculate all offdiagonal hessian blocks. 
   for(i=0; i<N; ++i)         
     for(j=0; j<i; ++j)    
       for(k=0; k<3; ++k)
-	for(l=0; l<3; ++l) 
-	  {
-	    double offdiagonal = -(forceConstantsMatrix[i][j])*getMatElement_parabolicPotential(atomSet, i, k, j, l, R_cutoff_squared); 
-	    Hessian[3*i+k][3*j+l] = offdiagonal;
-	    //printf("Hessian[%d][%d]=%lf\n", (3*i+k), (3*j+l), Hessian[3*i+k][3*j+l]);
-	    Hessian[3*j+l][3*i+k] = offdiagonal;
-	    //printf("Hessian[%d][%d]=%lf\n",  (3*j+l), (3*i+k), Hessian[3*j+l][3*i+k]);
-	  }	
+        for(l=0; l<3; ++l) 
+          {
+            double offdiagonal = -(forceConstantsMatrix[i][j])*getMatElement_parabolicPotential(atomSet, i, k, j, l, R_cutoff_squared); 
+            Hessian[3*i+k][3*j+l] = offdiagonal;
+            //printf("Hessian[%d][%d]=%lf\n", (3*i+k), (3*j+l), Hessian[3*i+k][3*j+l]);
+            Hessian[3*j+l][3*i+k] = offdiagonal;
+            //printf("Hessian[%d][%d]=%lf\n",  (3*j+l), (3*i+k), Hessian[3*j+l][3*i+k]);
+          }	
   
   //Here, we are calculating diagonal blocks.
   for(i=0; i<N; ++i)
@@ -767,9 +769,12 @@ void calculateCrossCorrelationsCA(int N, double *lambdas, double *A, int num_mod
         {
             ind_3j=3*j;
             //#Do the calculation for one half of the matrix
-            ccMatrix[i][j]+= (constant*(1.0/(forceConstantsMatrix[i][j]))*inv_eigval*( (A[3*N*k+ind_3i]*A[3*N*k+ind_3j]) + \
+            /*ccMatrix[i][j]+= (constant*(1.0/(forceConstantsMatrix[i][j]))*inv_eigval*( (A[3*N*k+ind_3i]*A[3*N*k+ind_3j]) + \
                                               (A[3*N*k+ind_3i+1]*A[3*N*k+ind_3j+1]) + \
-                                              (A[3*N*k+ind_3i+2]*A[3*N*k+ind_3j+2])));
+                                              (A[3*N*k+ind_3i+2]*A[3*N*k+ind_3j+2])));*/
+            ccMatrix[i][j]+= (constant*inv_eigval*( (A[3*N*k+ind_3i]*A[3*N*k+ind_3j]    ) + \
+                                                    (A[3*N*k+ind_3i+1]*A[3*N*k+ind_3j+1]) + \
+                                                    (A[3*N*k+ind_3i+2]*A[3*N*k+ind_3j+2])));
         }
     }
   
@@ -1033,6 +1038,9 @@ void usage()
     fputs("-c: Type for dynamical cross-correlations. If you want normalized, use 1.  \n", stdout);
     fputs("    Otherwise, use 0.                                                      \n", stdout);
 
+    fputs("-f: Force constant matrix file. If you don't specify it or if you just     \n", stdout);
+    fputs("    'no', a uniform force constant of 1.0 will be assumed!.                \n", stdout);
+
 }
 void readForceConstantsMatrixHANM(char *fcFile, double **forceConstantsMatrix)
 {
@@ -1106,11 +1114,13 @@ void readForceConstantsMatrixPatriceKoehl(int N, char *fcFile, double **forceCon
     if(line[0]!='#')
     {
       i++;
-      if(i>N+1 && i<N+10)
+      //if(i>N+1 && i<N+10)
+      if(i>N+1)
       {
         sscanf(line, "%d %d %lf", &k, &l, &forceConstant);
         forceConstantsMatrix[k-1][l-1]=forceConstant;
-        fprintf(stderr, "%s", line);
+        forceConstantsMatrix[l-1][k-1]=forceConstant;
+        //fprintf(stderr, "%s", line);
       }
     }//c_buffer=strtok(line, " ");
     //int i=0;
@@ -1126,23 +1136,36 @@ void readForceConstantsMatrixPatriceKoehl(int N, char *fcFile, double **forceCon
   //   //forceConstantsMatrix[atoi(array[1])-1][atoi(array[0])-1]=conversionFactor*atof(array[2]);
   //   forceConstantsMatrix[atoi(array[0])-1][atoi(array[1])-1]=atof(array[2]);
   //   forceConstantsMatrix[atoi(array[1])-1][atoi(array[0])-1]=atof(array[2]);
-
-
   }
+
+
+  bool debug=false;
+  if(debug){
+    for (k=0; k<N; k++)
+    {
+      for(l=0; l<N; l++)
+      {
+        fprintf(stdout, "%.2lf ", forceConstantsMatrix[k][l]);
+      }
+      fprintf(stdout, "\n");
+    }
+  }
+
+  
   fclose(fcdata);
 }
 int main (int argc, char **argv)
 {
   fputs("==========================================================================\n", stdout);
-  fputs("      ======  =     =   ==     ==       o     o  o       o      o         \n", stdout);
-  fputs("      =       = =   =   = =   = =       o o   o  oo     oo     o o        \n", stdout);
-  fputs("      ====    =  =  =   =  = =  =  ***  o  o  o  o o   o o    ooooo       \n", stdout);
-  fputs("      =       =   = =   =   =   =       o   o o  o  o o  o   o     o      \n", stdout);
-  fputs("      ======  =     =   =       =       o     o  o   o   o  o       o     \n", stdout);
+  fputs("      =    =      =      ==   =    ===      oooo   o     o                 \n", stdout);
+  fputs("      = =  =     = =     = =  =   =   =     o   o   o   o                  \n", stdout);
+  fputs("      =  = =    =====    =  = =  =     =    o    o   ooo                   \n", stdout);
+  fputs("      =   ==   =     =   =   ==   =   =     o   o     o                    \n", stdout);
+  fputs("      =    =  =       =  =    =    ===      oooo      o                    \n", stdout);
   fputs("==========================================================================\n", stdout);
-  fputs("            Protein Normal Mode Calculation Program                       \n", stdout);
+  fputs("Equillibrium dynamics of nanosystems: from viruses to large nanostructures\n", stdout);
   fputs("                              by                                          \n", stdout);
-  fputs("                     TechPinar Scientific                               \n\n", stdout);
+  fputs("                        Mustafa Tekpinar                                \n\n", stdout);
 
   int option=0;
   int num_modes=10;
@@ -1375,7 +1398,7 @@ int main (int argc, char **argv)
     }
   int j=0;
   
-  //Set all diagonal force constants to 1.0. This is just a trieck to avoid nan values for on diagonal elements!
+ // Set all diagonal force constants to 1.0. This is just a trieck to avoid nan values for on diagonal elements!
   for (i=0; i<N; i++)
     {
       for (j=i; j<N; j++)
@@ -1388,6 +1411,7 @@ int main (int argc, char **argv)
   //Read force constants matrix
   if(strcmp(forceConstantsFile, "no")!=0)
   {
+    fprintf(stdout, "Reading force constants matrix from %s file!\n", forceConstantsFile);
     readForceConstantsMatrixHANM(forceConstantsFile, forceConstantsMatrix);
     //readForceConstantsMatrixPatriceKoehl(N, forceConstantsFile, forceConstantsMatrix);
   }
@@ -1400,7 +1424,7 @@ int main (int argc, char **argv)
   /*Unfortunately, there are some zero force constants in Patrice's minimization algorithm,
   These values are zero despite being within the cutoff distance. These values are causing nan values when calcu-
   lating cross-correlation matrix. So, I have to make them 1.0 after the hessian computation so that they will not
-  mess cross-correlation calculations!
+  mess up cross-correlation calculations!
   */
 
   // if(strcmp(forceConstantsFile, "no")!=0)
