@@ -1156,16 +1156,16 @@ void readForceConstantsMatrixPatriceKoehl(int N, char *fcFile, double **forceCon
 }
 int main (int argc, char **argv)
 {
-  fputs("==========================================================================\n", stdout);
+  fputs("===========================================================================\n", stdout);
   fputs("      =    =      =      ==   =    ===      oooo   o     o                 \n", stdout);
   fputs("      = =  =     = =     = =  =   =   =     o   o   o   o                  \n", stdout);
   fputs("      =  = =    =====    =  = =  =     =    o    o   ooo                   \n", stdout);
   fputs("      =   ==   =     =   =   ==   =   =     o   o     o                    \n", stdout);
   fputs("      =    =  =       =  =    =    ===      oooo      o                    \n", stdout);
-  fputs("==========================================================================\n", stdout);
-  fputs("Equillibrium dynamics of nanosystems: from viruses to large nanostructures\n", stdout);
-  fputs("                              by                                          \n", stdout);
-  fputs("                        Mustafa Tekpinar                                \n\n", stdout);
+  fputs("===========================================================================\n", stdout);
+  fputs("Equillibrium dynamics of nanosystems: from viruses to large nanostructures \n", stdout);
+  fputs("                              by                                           \n", stdout);
+  fputs("                        Mustafa Tekpinar                                 \n\n", stdout);
 
   int option=0;
   int num_modes=10;
